@@ -18,6 +18,11 @@
 #include <vector>
 
 extern "C" void cudaqx_qec_realtime_device_call_service_force_link();
+// Self-verification hooks (see assertions below): prove the call actually
+// traversed the cudaq-realtime wires instead of silently bypassing to the
+// direct trampoline / inline decoder.
+extern "C" std::uint64_t cudaqx_qec_device_call_dispatch_count();
+extern "C" int cudaqx_qec_realtime_session_active();
 
 namespace {
 
@@ -131,4 +136,18 @@ TEST(PyMatchingDeviceCallRealtime, HostDispatch) {
   const auto results = cudaq::run(kRunShots, pymatching_device_call_kernel);
   ASSERT_EQ(results.size(), kRunShots);
   EXPECT_EQ(results[0], kExpectedCorrection);
+
+  // Self-verify the wires were actually used (a correct result alone does not
+  // prove this -- the direct trampoline / inline decoder would also produce it).
+  // HOP1: the device_calls were dispatched through the host-dispatch ring to the
+  // service (not the direct trampoline).
+  EXPECT_GT(cudaqx_qec_device_call_dispatch_count(), 0u)
+      << "device_call did not reach the host-dispatch service; it likely "
+         "bypassed to the direct trampoline (missing -frealtime-lowering on the "
+         "device wrappers, or the wrong simulation library was linked).";
+  // HOP2: the decode crossed the cudaq-realtime session ring (inproc_rpc), not
+  // the inline decoder path.
+  EXPECT_NE(cudaqx_qec_realtime_session_active(), 0)
+      << "inproc_rpc session ring is not active; the decode likely ran inline "
+         "(is CUDAQ_QEC_REALTIME_MODE=inproc_rpc set for the test?).";
 }

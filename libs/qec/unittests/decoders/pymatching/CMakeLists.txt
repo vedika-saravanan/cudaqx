@@ -73,11 +73,17 @@ if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-device-call)
   target_link_directories(test_pymatching_device_call_realtime
     PRIVATE ${CUDAQ_INSTALL_DIR}/lib)
 
+  # Link the realtime-lowered device wrappers (NOT cudaq-qec-realtime-decoding-
+  # simulation). The plain -simulation library compiles its device_calls without
+  # -frealtime-lowering and ships direct host trampolines, which would bypass the
+  # host-dispatch service. The -simulation-cqr variant lowers the
+  # device_calls to the realtime frame ABI so they dispatch through the
+  # host-dispatch channel to the cudaq-qec-realtime-device-call service.
   target_link_libraries(test_pymatching_device_call_realtime PRIVATE
     GTest::gtest_main
     cudaq-qec
     cudaq-qec-realtime-decoding
-    cudaq-qec-realtime-decoding-simulation
+    cudaq-qec-realtime-decoding-simulation-cqr
     cudaq::cudaq cudaq::cudaq-common cudaq-mlir-runtime
     nvqir nvqir-stim
   )
@@ -89,7 +95,15 @@ if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-device-call)
 
   add_dependencies(test_pymatching_device_call_realtime cudaq-qec-pymatching)
   add_dependencies(CUDAQXQECUnitTests test_pymatching_device_call_realtime)
+  # CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch routes the device_call through the
+  # host-dispatch service; CUDAQ_QEC_REALTIME_MODE=inproc_rpc then routes the
+  # decode across the cudaq-realtime session ring. The two vars are joined with
+  # an ESCAPED semicolon (\;) so they stay a single ENVIRONMENT value (a list of
+  # two var=value entries); an unescaped ';' is split by gtest_discover_tests and
+  # set_tests_properties keeps only the first, silently dropping inproc_rpc
+  # (caught by the HOP2 self-check in the test).
   gtest_discover_tests(test_pymatching_device_call_realtime
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    PROPERTIES ENVIRONMENT "CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch")
+    PROPERTIES ENVIRONMENT
+      "CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch\;CUDAQ_QEC_REALTIME_MODE=inproc_rpc")
 endif()

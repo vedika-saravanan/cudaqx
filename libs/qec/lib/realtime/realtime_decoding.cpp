@@ -241,6 +241,13 @@ cudaq::qec::realtime::qec_realtime_session *get_realtime_session() {
   return g_realtime_session.get();
 }
 
+// Test hook: 1 when the inproc_rpc shared-ring session is live, i.e. decodes are
+// crossing the cudaq-realtime session ring (HOP2) rather than running inline.
+extern "C" __attribute__((visibility("default"))) int
+cudaqx_qec_realtime_session_active() {
+  return get_realtime_session() != nullptr ? 1 : 0;
+}
+
 int configure_decoders(
     cudaq::qec::decoding::config::multi_decoder_config &config) {
   CUDAQ_INFO("Initializing decoders...");

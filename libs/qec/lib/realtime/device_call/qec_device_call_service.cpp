@@ -11,6 +11,7 @@
 #include "cudaq/realtime/daemon/dispatcher/dispatch_kernel_launch.h"
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -122,6 +123,12 @@ bool read_stdvec_i1(const std::uint8_t *payload, std::size_t arg_len,
   return true;
 }
 
+// Counts validated requests this host-dispatch service has handled. Lets a test
+// confirm the device_call actually traversed the host-dispatch ring to the
+// service (HOP1) rather than resolving to a direct host trampoline. Exposed via
+// cudaqx_qec_device_call_dispatch_count() below.
+std::atomic<std::uint64_t> g_service_dispatch_count{0};
+
 bool read_request_payload(const void *rx_slot, std::size_t slot_size,
                           const cudaq::realtime::RPCHeader *&request,
                           const std::uint8_t *&payload, std::size_t &arg_len) {
@@ -138,6 +145,7 @@ bool read_request_payload(const void *rx_slot, std::size_t slot_size,
 
   payload = static_cast<const std::uint8_t *>(rx_slot) +
             sizeof(cudaq::realtime::RPCHeader);
+  g_service_dispatch_count.fetch_add(1, std::memory_order_relaxed);
   return true;
 }
 
@@ -368,6 +376,13 @@ DeviceCallService *get_service() { return &g_service; }
 
 extern "C" __attribute__((visibility("default"))) void
 cudaqx_qec_realtime_device_call_service_force_link() {}
+
+// Test hook: number of requests this service has dispatched. Non-zero only if
+// device_calls were routed through the host-dispatch ring to this service.
+extern "C" __attribute__((visibility("default"))) std::uint64_t
+cudaqx_qec_device_call_dispatch_count() {
+  return g_service_dispatch_count.load(std::memory_order_relaxed);
+}
 
 extern "C" __attribute__((visibility("default"))) DeviceCallServicePluginInfo
 cudaqGetDeviceCallServicePluginInfo() {
