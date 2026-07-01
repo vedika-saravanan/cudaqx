@@ -330,6 +330,19 @@ void configure_entry(cudaq_function_entry_t &entry, std::uint32_t function_id,
   entry.schema.num_results = num_results;
 }
 
+// Registers the fixed default-route RPC handlers (enqueue_syndromes /
+// get_corrections / reset_decoder), all as CUDAQ_DISPATCH_HOST_CALL entries that
+// decode on the CPU via the host API.
+//
+// TODO(decoding-server): a more complete decoding server should build the
+// function table per configured decoder rather than as this fixed CPU set. Each
+// decoder instance would get its own configure_entry establishing the correct
+// processing mechanism -- CUDAQ_DISPATCH_HOST_CALL for CPU/host decoders, or
+// CUDAQ_DISPATCH_GRAPH_LAUNCH for GPU decoders driven by a captured CUDA graph
+// (see decoder_server_runtime.md "per-decoder alternative dispatch units").
+// That is what would let the device_call host-dispatch path (this service)
+// dispatch straight to the right per-decoder mechanism, superseding the
+// separate qec_realtime_session decode ring entirely.
 std::array<cudaq_function_entry_t, kDeviceCallEntryCount> make_entries() {
   std::array<cudaq_function_entry_t, kDeviceCallEntryCount> entries{};
 

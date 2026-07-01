@@ -97,15 +97,12 @@ if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-decoding-server-cqr)
 
   add_dependencies(test_pymatching_device_call_realtime cudaq-qec-pymatching)
   add_dependencies(CUDAQXQECUnitTests test_pymatching_device_call_realtime)
-  # CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch routes the device_call through the
-  # host-dispatch service; CUDAQ_QEC_REALTIME_MODE=inproc_rpc then routes the
-  # decode across the cudaq-realtime session ring. The two vars are joined with
-  # an ESCAPED semicolon (\;) so they stay a single ENVIRONMENT value (a list of
-  # two var=value entries); an unescaped ';' is split by gtest_discover_tests and
-  # set_tests_properties keeps only the first, silently dropping inproc_rpc
-  # (caught by the HOP2 self-check in the test).
+  # CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch routes the device_call over the
+  # cudaq-realtime host-dispatch ring to the decoding server, which decodes on
+  # the CPU host. No CUDAQ_QEC_REALTIME_MODE=inproc_rpc: that second,
+  # server-internal decode ring is redundant now that the device_call already
+  # crosses cudaq-realtime here -- the server decodes inline instead.
   gtest_discover_tests(test_pymatching_device_call_realtime
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    PROPERTIES ENVIRONMENT
-      "CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch\;CUDAQ_QEC_REALTIME_MODE=inproc_rpc")
+    PROPERTIES ENVIRONMENT "CUDAQ_DEVICE_CALL_CHANNEL=host_dispatch")
 endif()
