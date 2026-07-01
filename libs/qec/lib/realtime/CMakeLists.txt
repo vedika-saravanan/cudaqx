@@ -192,7 +192,7 @@ add_library(cudaq-qec-realtime-decoding SHARED
   rpc_producer.cpp
 )
 
-target_compile_options(cudaq-qec-realtime-decoding
+target_compile_options(cudaq-qec-realtime-decoding 
   PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
 
 target_include_directories(cudaq-qec-realtime-decoding
@@ -226,18 +226,15 @@ target_link_libraries(cudaq-qec-realtime-decoding
     $<$<BOOL:${CUDAQ_REALTIME_HOST_DISPATCH_LIBRARY}>:${CUDAQ_REALTIME_HOST_DISPATCH_LIBRARY}>
 )
 
-set(_qec_realtime_decoding_build_rpath "${CMAKE_BINARY_DIR}/lib")
-set(_qec_realtime_decoding_install_rpath
-  "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-if(_CUDAQ_REALTIME_LIB_DIR)
-  list(APPEND _qec_realtime_decoding_build_rpath "${_CUDAQ_REALTIME_LIB_DIR}")
-  list(APPEND _qec_realtime_decoding_install_rpath "${_CUDAQ_REALTIME_LIB_DIR}")
-endif()
 set_target_properties(cudaq-qec-realtime-decoding PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
-  BUILD_RPATH "${_qec_realtime_decoding_build_rpath}"
-  INSTALL_RPATH "${_qec_realtime_decoding_install_rpath}"
-)
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+if(_CUDAQ_REALTIME_LIB_DIR)
+  set_target_properties(cudaq-qec-realtime-decoding PROPERTIES
+    BUILD_RPATH "${_CUDAQ_REALTIME_LIB_DIR};${CMAKE_BINARY_DIR}/lib"
+    INSTALL_RPATH "${_CUDAQ_REALTIME_LIB_DIR};${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
+  )
+endif()
 
 
 install(TARGETS cudaq-qec-realtime-decoding
