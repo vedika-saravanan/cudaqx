@@ -15,7 +15,7 @@
 # cudaq-qec-realtime-decoding host API. A simulated QPU (../simulation-cqr) or,
 # eventually, real hardware issues those RPCs over cudaq-realtime.
 add_library(cudaq-qec-realtime-decoding-server-cqr SHARED
-  qec_device_call_service.cpp
+  decoding_server_cqr.cpp
 )
 
 target_compile_options(cudaq-qec-realtime-decoding-server-cqr

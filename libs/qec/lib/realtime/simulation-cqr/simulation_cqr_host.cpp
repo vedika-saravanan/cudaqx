@@ -13,7 +13,7 @@
 //      resolve.
 //   2. To service the direct/emulate channel, where the device_call resolves
 //      straight to these (the host-dispatch channel instead routes by
-//      function_id to the service in qec_device_call_service.cpp and never calls
+//      function_id to the service in decoding_server_cqr.cpp and never calls
 //      these).
 //
 // They are given HIDDEN visibility: the device stubs resolve them within this

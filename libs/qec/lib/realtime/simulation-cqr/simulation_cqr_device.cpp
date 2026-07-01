@@ -14,7 +14,7 @@
 // get_corrections / reset_decoder -- rather than the simulation backend's
 // simulation_* / C++-mangled symbols. The realtime function_id is
 // fnv1a_32(<callee name>), so these names are what the host-dispatch service
-// (qec_device_call_service.cpp) registers.
+// (decoding_server_cqr.cpp) registers.
 //
 // This translation unit is compiled with -frealtime-lowering (see the
 // cudaq-qec-realtime-decoding-simulation-cqr library), which rewrites each device_call to
