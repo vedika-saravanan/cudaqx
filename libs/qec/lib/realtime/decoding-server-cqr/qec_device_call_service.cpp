@@ -24,7 +24,7 @@ using cudaq_internal::device_call::DeviceCallService;
 using cudaq_internal::device_call::DeviceCallServicePluginInfo;
 
 // Realtime function ids are fnv1a_32 of the kernel-facing callee name, matching
-// the generic device_call targets emitted by the cudaq-qec-realtime-decoding-cqr
+// the generic device_call targets emitted by the cudaq-qec-realtime-decoding-simulation-cqr
 // device wrappers (and the names defined in decoder_server_runtime.md). All
 // three are extern "C", so no name mangling is involved.
 constexpr std::uint32_t kEnqueueSyndromesFnId =

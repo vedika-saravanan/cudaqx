@@ -52,7 +52,7 @@ if(CUDAQ_REALTIME_ROOT AND CUDAQ_REALTIME_INCLUDE_DIR)
   gtest_discover_tests(test_pymatching_realtime)
 endif()
 
-if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-device-call)
+if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-decoding-server-cqr)
   add_executable(test_pymatching_device_call_realtime)
   set_target_properties(test_pymatching_device_call_realtime PROPERTIES
     LINKER_LANGUAGE CXX)
@@ -73,17 +73,19 @@ if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-device-call)
   target_link_directories(test_pymatching_device_call_realtime
     PRIVATE ${CUDAQ_INSTALL_DIR}/lib)
 
-  # Link the realtime-lowered device wrappers (NOT cudaq-qec-realtime-decoding-
-  # simulation). The plain -simulation library compiles its device_calls without
-  # -frealtime-lowering and ships direct host trampolines, which would bypass the
-  # host-dispatch service. The -cqr variant lowers the
-  # device_calls to the realtime frame ABI so they dispatch through the
-  # host-dispatch channel to the cudaq-qec-realtime-device-call service.
+  # This test wires up both ends of the cqr host-dispatch path:
+  #   - simulation-cqr: the simulated-QPU client whose device_calls are lowered
+  #     (-frealtime-lowering) to the realtime frame ABI, rather than resolving to
+  #     the plain -simulation library's direct trampolines (which would bypass
+  #     the server).
+  #   - decoding-server-cqr: the host-dispatch service that receives them (and
+  #     provides the force-link + self-check hooks the test asserts on).
   target_link_libraries(test_pymatching_device_call_realtime PRIVATE
     GTest::gtest_main
     cudaq-qec
     cudaq-qec-realtime-decoding
-    cudaq-qec-realtime-decoding-cqr
+    cudaq-qec-realtime-decoding-simulation-cqr
+    cudaq-qec-realtime-decoding-server-cqr
     cudaq::cudaq cudaq::cudaq-common cudaq-mlir-runtime
     nvqir nvqir-stim
   )

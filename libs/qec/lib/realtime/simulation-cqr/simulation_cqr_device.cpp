@@ -17,10 +17,10 @@
 // (qec_device_call_service.cpp) registers.
 //
 // This translation unit is compiled with -frealtime-lowering (see the
-// cudaq-qec-realtime-decoding-cqr library), which rewrites each device_call to
+// cudaq-qec-realtime-decoding-simulation-cqr library), which rewrites each device_call to
 // the realtime frame ABI and dispatches it by function_id through the
 // host-dispatch channel. The callee names below are only hashed into the
-// function_id; the symbols themselves are defined in device_call_kernels_host.cpp
+// function_id; the symbols themselves are defined in simulation_cqr_host.cpp
 // with HIDDEN visibility (purely to satisfy the link), so the very generic names
 // are never exported and cannot collide with other libraries.
 
@@ -31,7 +31,7 @@
 #include "cudaq/qec/realtime/decoding.h"
 
 // device_call targets. Named to match the spec function_ids. Defined
-// (hidden) in device_call_kernels_host.cpp.
+// (hidden) in simulation_cqr_host.cpp.
 extern "C" {
 void enqueue_syndromes(std::uint64_t decoder_id,
                        const std::vector<bool> &syndromes, std::uint64_t tag);

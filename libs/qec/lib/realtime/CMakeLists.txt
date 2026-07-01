@@ -182,75 +182,17 @@ if(CUDAQ_QEC_REALTIME_CUDEVICE_PROPRIETARY_ARCHIVE)
     IMPORTED_LOCATION "${CUDAQ_QEC_REALTIME_CUDEVICE_PROPRIETARY_ARCHIVE}")
 endif()
 
-# Shared library for host-side API
-set(_qec_realtime_decoding_sources
+# Shared library for host-side API. The cqr host-dispatch service (server) and
+# the simulated-QPU client wrappers live in their own sibling libraries built
+# from ./decoding-server-cqr and ./simulation-cqr (added below), not here.
+add_library(cudaq-qec-realtime-decoding SHARED
   realtime_decoding.cpp
   config.cpp
   qec_realtime_session.cpp
   rpc_producer.cpp
 )
-if(CUDAQ_QEC_DEVICE_CALL_SERVICE_AVAILABLE)
-  list(APPEND _qec_realtime_decoding_sources
-    device_call/qec_device_call_service.cpp)
-endif()
 
-add_library(cudaq-qec-realtime-decoding SHARED
-  ${_qec_realtime_decoding_sources}
-)
-if(CUDAQ_QEC_DEVICE_CALL_SERVICE_AVAILABLE)
-  add_library(cudaq-qec-realtime-device-call INTERFACE)
-  target_link_libraries(cudaq-qec-realtime-device-call INTERFACE
-    cudaq-qec-realtime-decoding)
-
-  # Backend-neutral device-side wrappers compiled with -frealtime-lowering, so
-  # each cudaq::device_call is rewritten to the realtime frame ABI and
-  # dispatched (by fnv1a(function_id)) through the host-dispatch channel to the
-  # cudaq-qec-realtime-device-call service. The callees use the generic spec
-  # names (enqueue_syndromes / get_corrections / reset_decoder), which is what
-  # the service registers -- no simulation_*/C++-mangled symbols.
-  #
-  # device_call_kernels_host.cpp defines the generic callee symbols (hidden, to
-  # satisfy the link without exporting the very generic names);
-  # device_call_kernels.cpp holds the -frealtime-lowering'd __qpu__ wrappers.
-  add_library(cudaq-qec-realtime-decoding-cqr SHARED
-    device_call/device_call_kernels_host.cpp
-  )
-  set_target_properties(cudaq-qec-realtime-decoding-cqr PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-  target_compile_options(cudaq-qec-realtime-decoding-cqr
-    PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
-
-  target_include_directories(cudaq-qec-realtime-decoding-cqr
-    PUBLIC
-      $<BUILD_INTERFACE:${CUDAQX_QEC_INCLUDE_DIR}>
-      $<INSTALL_INTERFACE:${CUDAQ_INCLUDE_DIR}>
-      $<INSTALL_INTERFACE:include>
-  )
-
-  cudaqx_add_device_code(cudaq-qec-realtime-decoding-cqr
-    SOURCES
-      device_call/device_call_kernels.cpp
-    COMPILER_FLAGS
-      -frealtime-lowering
-  )
-
-  target_link_libraries(cudaq-qec-realtime-decoding-cqr
-    PUBLIC
-      cudaqx-core
-      cudaq-qec
-      cudaq-qec-realtime-decoding
-    PRIVATE
-      cudaq::cudaq-common
-  )
-
-  install(TARGETS cudaq-qec-realtime-decoding-cqr
-    COMPONENT qec-lib
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
-endif()
-
-target_compile_options(cudaq-qec-realtime-decoding 
+target_compile_options(cudaq-qec-realtime-decoding
   PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
 
 target_include_directories(cudaq-qec-realtime-decoding
@@ -261,7 +203,6 @@ target_include_directories(cudaq-qec-realtime-decoding
     $<INSTALL_INTERFACE:include>
   PRIVATE
     $<$<BOOL:${CUDAQ_REALTIME_INCLUDE_DIR}>:${CUDAQ_REALTIME_INCLUDE_DIR}>
-    $<$<BOOL:${CUDAQ_DEVICE_CALL_INCLUDE_DIR}>:${CUDAQ_DEVICE_CALL_INCLUDE_DIR}>
     ${CUDAToolkit_INCLUDE_DIRS}
 )
 
@@ -283,7 +224,6 @@ target_link_libraries(cudaq-qec-realtime-decoding
     LLVMSupport
     $<$<BOOL:${CUDAQ_REALTIME_LIBRARY}>:${CUDAQ_REALTIME_LIBRARY}>
     $<$<BOOL:${CUDAQ_REALTIME_HOST_DISPATCH_LIBRARY}>:${CUDAQ_REALTIME_HOST_DISPATCH_LIBRARY}>
-    $<$<BOOL:${CUDAQ_DEVICE_CALL_RUNTIME_LIBRARY}>:${CUDAQ_DEVICE_CALL_RUNTIME_LIBRARY}>
 )
 
 set(_qec_realtime_decoding_build_rpath "${CMAKE_BINARY_DIR}/lib")
@@ -292,12 +232,6 @@ set(_qec_realtime_decoding_install_rpath
 if(_CUDAQ_REALTIME_LIB_DIR)
   list(APPEND _qec_realtime_decoding_build_rpath "${_CUDAQ_REALTIME_LIB_DIR}")
   list(APPEND _qec_realtime_decoding_install_rpath "${_CUDAQ_REALTIME_LIB_DIR}")
-endif()
-if(_CUDAQ_DEVICE_CALL_RUNTIME_LIB_DIR)
-  list(APPEND _qec_realtime_decoding_build_rpath
-    "${_CUDAQ_DEVICE_CALL_RUNTIME_LIB_DIR}")
-  list(APPEND _qec_realtime_decoding_install_rpath
-    "${_CUDAQ_DEVICE_CALL_RUNTIME_LIB_DIR}")
 endif()
 set_target_properties(cudaq-qec-realtime-decoding PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
@@ -379,3 +313,9 @@ endif()
 
 add_subdirectory(quantinuum)
 add_subdirectory(simulation)
+if(CUDAQ_QEC_DEVICE_CALL_SERVICE_AVAILABLE)
+  # cudaq-realtime (cqr) host-dispatch: the decoding-server skeleton and the
+  # simulated-QPU client that drives it over cudaq-realtime.
+  add_subdirectory(decoding-server-cqr)
+  add_subdirectory(simulation-cqr)
+endif()

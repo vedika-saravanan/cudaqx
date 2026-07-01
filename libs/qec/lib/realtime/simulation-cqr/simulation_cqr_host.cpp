@@ -7,7 +7,7 @@
  ******************************************************************************/
 
 // Definitions for the generic device_call targets referenced by
-// device_call_kernels.cpp. These exist for two reasons:
+// simulation_cqr_device.cpp. These exist for two reasons:
 //   1. To satisfy the link: the -frealtime-lowering'd device stubs still emit an
 //      undefined reference to the callee symbol that the final link must
 //      resolve.
