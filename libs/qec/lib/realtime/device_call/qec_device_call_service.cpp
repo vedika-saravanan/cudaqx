@@ -23,14 +23,16 @@ using cudaq_internal::device_call::DeviceCallHostDispatchTable;
 using cudaq_internal::device_call::DeviceCallService;
 using cudaq_internal::device_call::DeviceCallServicePluginInfo;
 
+// Realtime function ids are fnv1a_32 of the kernel-facing callee name, matching
+// the generic device_call targets emitted by the cudaq-qec-realtime-decoding-cqr
+// device wrappers (and the names defined in decoder_server_runtime.md). All
+// three are extern "C", so no name mangling is involved.
 constexpr std::uint32_t kEnqueueSyndromesFnId =
-    cudaq::realtime::fnv1a_hash("simulation_enqueue_syndromes");
+    cudaq::realtime::fnv1a_hash("enqueue_syndromes");
 constexpr std::uint32_t kGetCorrectionsFnId =
-    cudaq::realtime::fnv1a_hash("simulation_get_corrections");
-// reset_decoder has C++ linkage in the simulation wrapper, so match the
-// mangled callee symbol emitted by CUDA-Q's realtime lowering.
-constexpr std::uint32_t kResetDecoderFnId = cudaq::realtime::fnv1a_hash(
-    "_ZN5cudaq3qec8decoding10simulation13reset_decoderEm");
+    cudaq::realtime::fnv1a_hash("get_corrections");
+constexpr std::uint32_t kResetDecoderFnId =
+    cudaq::realtime::fnv1a_hash("reset_decoder");
 
 constexpr std::int32_t kStatusSuccess = 0;
 constexpr std::int32_t kStatusInvalidRequest = -1;
@@ -207,7 +209,7 @@ void write_response(void *tx_slot, const void *rx_slot, std::int32_t status,
                    __ATOMIC_RELEASE);
 }
 
-void simulation_enqueue_syndromes_host(const void *rx_slot, void *tx_slot,
+void enqueue_syndromes_host(const void *rx_slot, void *tx_slot,
                                        std::size_t slot_size) {
   try {
     EnqueueSyndromesRequest request;
@@ -237,7 +239,7 @@ void simulation_enqueue_syndromes_host(const void *rx_slot, void *tx_slot,
   }
 }
 
-void simulation_get_corrections_host(const void *rx_slot, void *tx_slot,
+void get_corrections_host(const void *rx_slot, void *tx_slot,
                                      std::size_t slot_size) {
   try {
     GetCorrectionsRequest request;
@@ -276,7 +278,7 @@ void simulation_get_corrections_host(const void *rx_slot, void *tx_slot,
   }
 }
 
-void simulation_reset_decoder_host(const void *rx_slot, void *tx_slot,
+void reset_decoder_host(const void *rx_slot, void *tx_slot,
                                    std::size_t slot_size) {
   try {
     std::uint64_t decoder_id = 0;
@@ -333,7 +335,7 @@ std::array<cudaq_function_entry_t, kDeviceCallEntryCount> make_entries() {
 
   auto &enqueue_entry = entries[kEnqueueSyndromesEntry];
   configure_entry(enqueue_entry, kEnqueueSyndromesFnId,
-                  simulation_enqueue_syndromes_host, kEnqueueArgCount,
+                  enqueue_syndromes_host, kEnqueueArgCount,
                   kNoResults);
   set_u64(enqueue_entry.schema.args[kEnqueueDecoderIdArg]);
   set_array_u8(enqueue_entry.schema.args[kEnqueueSyndromesArg]);
@@ -341,7 +343,7 @@ std::array<cudaq_function_entry_t, kDeviceCallEntryCount> make_entries() {
 
   auto &get_entry = entries[kGetCorrectionsEntry];
   configure_entry(get_entry, kGetCorrectionsFnId,
-                  simulation_get_corrections_host, kGetCorrectionsArgCount,
+                  get_corrections_host, kGetCorrectionsArgCount,
                   kSingleResult);
   set_u64(get_entry.schema.args[kGetCorrectionsDecoderIdArg]);
   set_u64(get_entry.schema.args[kGetCorrectionsLengthArg]);
@@ -349,7 +351,7 @@ std::array<cudaq_function_entry_t, kDeviceCallEntryCount> make_entries() {
   set_array_u8(get_entry.schema.results[kCorrectionsResult]);
 
   auto &reset_entry = entries[kResetDecoderEntry];
-  configure_entry(reset_entry, kResetDecoderFnId, simulation_reset_decoder_host,
+  configure_entry(reset_entry, kResetDecoderFnId, reset_decoder_host,
                   kResetDecoderArgCount, kNoResults);
   set_u64(reset_entry.schema.args[kResetDecoderIdArg]);
 

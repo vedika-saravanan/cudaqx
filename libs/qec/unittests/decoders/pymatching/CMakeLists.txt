@@ -76,14 +76,14 @@ if(CUDAQ_REALTIME_INCLUDE_DIR AND TARGET cudaq-qec-realtime-device-call)
   # Link the realtime-lowered device wrappers (NOT cudaq-qec-realtime-decoding-
   # simulation). The plain -simulation library compiles its device_calls without
   # -frealtime-lowering and ships direct host trampolines, which would bypass the
-  # host-dispatch service. The -simulation-cqr variant lowers the
+  # host-dispatch service. The -cqr variant lowers the
   # device_calls to the realtime frame ABI so they dispatch through the
   # host-dispatch channel to the cudaq-qec-realtime-device-call service.
   target_link_libraries(test_pymatching_device_call_realtime PRIVATE
     GTest::gtest_main
     cudaq-qec
     cudaq-qec-realtime-decoding
-    cudaq-qec-realtime-decoding-simulation-cqr
+    cudaq-qec-realtime-decoding-cqr
     cudaq::cudaq cudaq::cudaq-common cudaq-mlir-runtime
     nvqir nvqir-stim
   )

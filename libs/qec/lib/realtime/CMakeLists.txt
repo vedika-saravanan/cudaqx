@@ -201,6 +201,53 @@ if(CUDAQ_QEC_DEVICE_CALL_SERVICE_AVAILABLE)
   add_library(cudaq-qec-realtime-device-call INTERFACE)
   target_link_libraries(cudaq-qec-realtime-device-call INTERFACE
     cudaq-qec-realtime-decoding)
+
+  # Backend-neutral device-side wrappers compiled with -frealtime-lowering, so
+  # each cudaq::device_call is rewritten to the realtime frame ABI and
+  # dispatched (by fnv1a(function_id)) through the host-dispatch channel to the
+  # cudaq-qec-realtime-device-call service. The callees use the generic spec
+  # names (enqueue_syndromes / get_corrections / reset_decoder), which is what
+  # the service registers -- no simulation_*/C++-mangled symbols.
+  #
+  # device_call_kernels_host.cpp defines the generic callee symbols (hidden, to
+  # satisfy the link without exporting the very generic names);
+  # device_call_kernels.cpp holds the -frealtime-lowering'd __qpu__ wrappers.
+  add_library(cudaq-qec-realtime-decoding-cqr SHARED
+    device_call/device_call_kernels_host.cpp
+  )
+  set_target_properties(cudaq-qec-realtime-decoding-cqr PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+  target_compile_options(cudaq-qec-realtime-decoding-cqr
+    PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+
+  target_include_directories(cudaq-qec-realtime-decoding-cqr
+    PUBLIC
+      $<BUILD_INTERFACE:${CUDAQX_QEC_INCLUDE_DIR}>
+      $<INSTALL_INTERFACE:${CUDAQ_INCLUDE_DIR}>
+      $<INSTALL_INTERFACE:include>
+  )
+
+  cudaqx_add_device_code(cudaq-qec-realtime-decoding-cqr
+    SOURCES
+      device_call/device_call_kernels.cpp
+    COMPILER_FLAGS
+      -frealtime-lowering
+  )
+
+  target_link_libraries(cudaq-qec-realtime-decoding-cqr
+    PUBLIC
+      cudaqx-core
+      cudaq-qec
+      cudaq-qec-realtime-decoding
+    PRIVATE
+      cudaq::cudaq-common
+  )
+
+  install(TARGETS cudaq-qec-realtime-decoding-cqr
+    COMPONENT qec-lib
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
 endif()
 
 target_compile_options(cudaq-qec-realtime-decoding 
