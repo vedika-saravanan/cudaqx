@@ -200,7 +200,7 @@ def main() -> None:
                     epsilon = certify_fraction
                     if certify_auto:
                         epsilon = allocation.optimal_certify_fraction(
-                            weights, bound_families, failures_so_far == 0,
+                            weights, failures_so_far == 0,
                             allocation.stratum_sigmas(failures_so_far,
                                                       labels_so_far, pseudo,
                                                       weights, families),
@@ -209,9 +209,8 @@ def main() -> None:
                         chosen_fractions.append(epsilon)
                     if epsilon is not None:
                         floors = allocation.certification_floor(
-                            weights, bound_families, failures_so_far == 0,
-                            rate_estimate, args.budget, epsilon, args.rounds,
-                            round_index,
+                            weights, failures_so_far == 0, rate_estimate,
+                            args.budget, epsilon, args.rounds, round_index,
                             np.sum(labels[1:], axis=0)
                             if len(labels) > 1 else np.zeros(len(names)))
                 n = allocation.round_labels(round_budget,
@@ -231,11 +230,8 @@ def main() -> None:
                     ]))
             estimate, variance = allocation.fixed_weight_estimate(
                 weights, labels[1:], failures[1:])
-            bound = allocation.fixed_weight_variance_bound(
-                weights, labels[1:], failures[1:], families=bound_families)
             certified = allocation.certified_variance(weights, labels[1:],
-                                                      failures[1:],
-                                                      bound_families)
+                                                      failures[1:])
             total_f = np.sum(failures, axis=0)
             total_n = np.sum(labels, axis=0)
             # Plain conditional sampling at the decode count the stratified
@@ -246,11 +242,10 @@ def main() -> None:
             repeats.append({
                 "estimate": estimate,
                 "standard_error": math.sqrt(variance),
-                "standard_error_bound": math.sqrt(bound),
-                "certified_variance_mixture": certified["mixture"],
-                "certified_variance_worst": certified["worst_case"],
+                "certified_variance": certified["certified"],
                 "certified_empty_mass": certified["empty_mass"],
-                "certified_bound_rates": certified["bound_rates"],
+                "certified_bound_group": certified["bound_group"],
+                "certified_bound_rate": certified["bound_rate"],
                 "certify_fractions": chosen_fractions,
                 "plain_shots": plain_shots,
                 "rest_mass_pooled": rest_mass,
@@ -263,8 +258,7 @@ def main() -> None:
             })
             print(f"  repeat {rep}: stratified f({k}) = {estimate:.3e} +- "
                   f"{math.sqrt(variance):.1e} (certified "
-                  f"{math.sqrt(certified['mixture']):.1e}, worst "
-                  f"{math.sqrt(certified['worst_case']):.1e}); plain "
+                  f"{math.sqrt(certified['certified']):.1e}); plain "
                   f"{plain:.3e} +- "
                   f"{math.sqrt(plain*(1-plain)/plain_shots):.1e} at "
                   f"{plain_shots} decodes")
@@ -272,10 +266,9 @@ def main() -> None:
                                                  rest_mass, args)
         pc = report["per_count"][k]
         certified = pc["variance_gain_certified"] or float("nan")
-        worst = pc["variance_gain_certified_worst"] or float("nan")
         print(f"k={k}: f = {pc['stratified_mean']:.3e}; variance gain over "
               f"plain at equal decodes x{pc['variance_gain_analytic']:.2f} "
-              f"(certified x{certified:.2f}, worst x{worst:.2f}; "
+              f"(certified x{certified:.2f}; "
               f"plug-in Neyman at "
               f"pooled rates x{pc['variance_gain_neyman_plugin']:.2f}, "
               f"x{pc['variance_gain_neyman_plugin_with_pilot']:.2f} with "
@@ -312,25 +305,15 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
     shots = float(np.mean([sum(r["group_labels"]) for r in repeats]))
     plain_sd = math.sqrt(pooled * (1 - pooled) / shots)
     strat_sd = float(np.mean([r["standard_error"] for r in repeats]))
-    bound_sd = float(np.mean([r["standard_error_bound"] for r in repeats]))
-    certified_sd = (float(
-        np.mean([math.sqrt(r["certified_variance_mixture"]) for r in repeats]))
-                    if all("certified_variance_mixture" in r for r in repeats)
-                    else None)
-    worst_sd = (float(
-        np.mean([math.sqrt(r["certified_variance_worst"]) for r in repeats])) if
-                all("certified_variance_worst" in r for r in repeats) else None)
+    certified_sd = float(
+        np.mean([math.sqrt(r["certified_variance"]) for r in repeats]))
 
     def gain(sd: float) -> float:
         return (plain_sd / sd)**2 if sd > 0 else float("nan")
 
-    # Rate of the never-failing groups at which the gain would vanish, and
-    # the 95% rule-of-three bound their labels give (per position-free
-    # family, pooled over repeats).
-    bound_families = np.array([
-        str(layers.position_family(g)) if isinstance(g, tuple) else str(g)
-        for g in names
-    ])
+    # Rate of the never-failing groups at which the gain would vanish
+    # (common-rate, first order) and the rate the certified bound actually
+    # charges its binding group, averaged over repeats.
     break_even = []
     for r in repeats:
         labels = [np.array(n, dtype=float) for n in r["round_labels"][1:]]
@@ -338,19 +321,13 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
         break_even.append(
             allocation.zero_group_break_even(weights, labels, fails,
                                              plain_sd**2))
+    bound_rates = [
+        r["certified_bound_rate"]
+        for r in repeats
+        if r.get("certified_bound_rate") is not None
+    ]
+    bound_rate = float(np.mean(bound_rates)) if bound_rates else None
     never = pooled_f == 0
-    bound_rate = None
-    if np.any(never):
-        family_trials = {}
-        for fam in np.unique(bound_families[never]):
-            members = never & (bound_families == fam)
-            family_trials[fam] = float(pooled_n[members].sum())
-        # Mass-weighted bound over the never-failing groups.
-        bound_rate = float(
-            np.dot(weights[never], [
-                allocation.ZERO_FAILURE_BOUND_EVENTS / family_trials[fam]
-                for fam in bound_families[never]
-            ]) / weights[never].sum())
 
     return {
         "groups": [{
@@ -365,8 +342,6 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
             pooled,
         "stratified_sd_analytic":
             strat_sd,
-        "stratified_sd_bound":
-            bound_sd,
         "stratified_sd_realised":
             float(estimates.std(ddof=1)) if len(estimates) > 1 else None,
         "plain_mean":
@@ -375,24 +350,17 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
             shots,
         "stratified_sd_certified":
             certified_sd,
-        "stratified_sd_certified_worst":
-            worst_sd,
-        # Gains with the never-failing groups charged at the family bound
-        # (mixture) and at its worst distribution over the family.
+        # Gain with the never-failing groups charged by the exposure-aware
+        # bound (allocation.certified_variance).
         "variance_gain_certified":
-            gain(certified_sd) if certified_sd is not None else None,
-        "variance_gain_certified_worst":
-            gain(worst_sd) if worst_sd is not None else None,
+            gain(certified_sd),
         "plain_sd_analytic":
             plain_sd,
         "plain_sd_realised":
             float(plains.std(ddof=1)) if len(plains) > 1 else None,
-        # Per-round unbiased plug-in (zero-failure groups at rate 0) and the
-        # rule-of-three bound for those groups; quote the gain as a range.
+        # Per-round unbiased plug-in (zero-failure groups at rate 0).
         "variance_gain_analytic":
             gain(strat_sd),
-        "variance_gain_bound":
-            gain(bound_sd),
         # Plug-in Neyman at the pooled rates (zero-failure groups at sigma
         # 0), without and with the uniform pilot charged.
         "variance_gain_neyman_plugin":

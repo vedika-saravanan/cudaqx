@@ -25,7 +25,7 @@
   "gains": {
     "3": {
       "gain": 3.2787183041241996,
-      "gain_certified": 1.7294166608500383,
+      "gain_certified": 2.221823795523267,
       "f": 9.121706035715248e-05,
       "se": 5.118643744169361e-06,
       "budget": 1061750,
@@ -34,7 +34,7 @@
     },
     "4": {
       "gain": 1.6556104454939005,
-      "gain_certified": 1.1434662617872466,
+      "gain_certified": 1.1534494702885398,
       "f": 0.0004565525589265163,
       "se": 2.051581756563065e-05,
       "budget": 654872,
@@ -43,7 +43,7 @@
     },
     "5": {
       "gain": 1.4045749336654558,
-      "gain_certified": 1.1696793503979468,
+      "gain_certified": 1.1597213398845623,
       "f": 0.0014158902302414897,
       "se": 4.05978617592821e-05,
       "budget": 610749,
@@ -55,13 +55,14 @@
     {
       "rate": 0.002,
       "ler": 0.003227580913252072,
+      "ler_exact_reweighted": null,
       "ler_exact_head": 1.4495245771490457e-08,
       "mass_below_measured": 0.06336287092544712,
       "mass_above_measured": 0.1481096871170794,
       "direct_cost": 30882.956798824656,
       "plain_stratified_cost": 17484.492255374116,
       "layer_stratified_cost": 15909.936088519868,
-      "layer_stratified_cost_certified": 16795.821867517916,
+      "layer_stratified_cost_certified": 16745.47711529552,
       "layer_stratified_cost_fixed_pilot": 271550.18730857776,
       "implied_decodes_by_count": {
         "3": 182.51295933963806,
@@ -77,7 +78,7 @@
         "5": 2029.8271926747693
       },
       "speedup_over_plain": 1.0989668442471243,
-      "speedup_over_plain_certified": 1.041002482241613,
+      "speedup_over_plain_certified": 1.0441322235843356,
       "speedup_over_plain_fixed_pilot": 0.06438770095748637,
       "speedup_over_direct": 1.9411113047216368,
       "onset_count": 3,
@@ -93,13 +94,14 @@
     {
       "rate": 0.001,
       "ler": 0.0006670846921572227,
+      "ler_exact_reweighted": null,
       "ler_exact_head": 7.162869949983292e-08,
       "mass_below_measured": 0.42627493877723444,
       "mass_above_measured": 0.0036359358896530525,
       "direct_cost": 149806.00320420988,
       "plain_stratified_cost": 50338.528322186445,
       "layer_stratified_cost": 36049.96947637495,
-      "layer_stratified_cost_certified": 43765.54386880736,
+      "layer_stratified_cost_certified": 42606.733507121746,
       "layer_stratified_cost_fixed_pilot": 294502.21528117405,
       "implied_decodes_by_count": {
         "3": 3282.211098666961,
@@ -115,7 +117,7 @@
         "5": 9114.351747598841
       },
       "speedup_over_plain": 1.3963542564210876,
-      "speedup_over_plain_certified": 1.1501862851992064,
+      "speedup_over_plain_certified": 1.181468847260312,
       "speedup_over_plain_fixed_pilot": 0.17092750312294278,
       "speedup_over_direct": 4.155509848694435,
       "onset_count": 3,
@@ -131,13 +133,14 @@
     {
       "rate": 0.0005,
       "ler": 7.00992609328479e-05,
+      "ler_exact_reweighted": 7.003734973644599e-05,
       "ler_exact_head": 7.9716677074995e-08,
       "mass_below_measured": 0.8104613986361071,
       "mass_above_measured": 2.6339232635952392e-05,
       "direct_cost": 1426448.5636973507,
       "plain_stratified_cost": 175239.96551305678,
       "layer_stratified_cost": 91203.56102322538,
-      "layer_stratified_cost_certified": 132729.59680858187,
+      "layer_stratified_cost_certified": 121957.8090165734,
       "layer_stratified_cost_fixed_pilot": 356384.61935412546,
       "implied_decodes_by_count": {
         "3": 27636.45649828705,
@@ -153,7 +156,7 @@
         "5": 19173.754319242347
       },
       "speedup_over_plain": 1.9214158257310936,
-      "speedup_over_plain_certified": 1.3202779916960188,
+      "speedup_over_plain_certified": 1.4368900763807804,
       "speedup_over_plain_fixed_pilot": 0.491715848542071,
       "speedup_over_direct": 15.640272678981244,
       "onset_count": 3,
@@ -169,13 +172,14 @@
     {
       "rate": 0.0002,
       "ler": 3.6299147706623757e-06,
+      "ler_exact_reweighted": 3.5998025185679947e-06,
       "ler_exact_head": 3.125802197846561e-08,
       "mass_below_measured": 0.9771282606836604,
       "mass_above_measured": 1.5332785707755647e-08,
       "direct_cost": 27548756.190293495,
       "plain_stratified_cost": 505971.5309850119,
       "layer_stratified_cost": 196958.97844204554,
-      "layer_stratified_cost_certified": 333547.3336612602,
+      "layer_stratified_cost_certified": 283104.1831794884,
       "layer_stratified_cost_fixed_pilot": 468856.77019843564,
       "implied_decodes_by_count": {
         "3": 122990.36012533888,
@@ -191,7 +195,7 @@
         "5": 13647.424722763328
       },
       "speedup_over_plain": 2.568918335113584,
-      "speedup_over_plain_certified": 1.5169407155233328,
+      "speedup_over_plain_certified": 1.7872273214141288,
       "speedup_over_plain_fixed_pilot": 1.0791601255344314,
       "speedup_over_direct": 139.8705273971535,
       "onset_count": 3,
@@ -207,13 +211,14 @@
     {
       "rate": 0.0001,
       "ler": 4.2606486257185375e-07,
+      "ler_exact_reweighted": 4.156716880712794e-07,
       "ler_exact_head": 1.0536476478462059e-08,
       "mass_below_measured": 0.9964410078919398,
       "mass_above_measured": 3.9119374406482166e-11,
       "direct_cost": 234705947.79838064,
       "plain_stratified_cost": 729867.3998630326,
       "layer_stratified_cost": 253030.63042800888,
-      "layer_stratified_cost_certified": 452870.77540113806,
+      "layer_stratified_cost_certified": 369681.5976574281,
       "layer_stratified_cost_fixed_pilot": 526244.1222757366,
       "implied_decodes_by_count": {
         "3": 200155.15792400963,
@@ -229,7 +234,7 @@
         "5": 5551.767921834619
       },
       "speedup_over_plain": 2.8845021593964337,
-      "speedup_over_plain_certified": 1.6116460577888694,
+      "speedup_over_plain_certified": 1.9743135836027654,
       "speedup_over_plain_fixed_pilot": 1.3869369157164728,
       "speedup_over_direct": 927.5791922952906,
       "onset_count": 3,

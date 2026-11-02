@@ -1,0 +1,60 @@
+{
+  "rate": 0.0001,
+  "counts": [
+    3,
+    4,
+    5
+  ],
+  "covered_mass": 0.03669180590593932,
+  "exact_head": {
+    "2": 3.18e-07
+  },
+  "repeats": [
+    {
+      "ler": 4.993725313762747e-07,
+      "relative_se_plug_in": 0.09025505889054221,
+      "relative_se_certified": 0.10692769783607782,
+      "relative_se_certified_union": 0.11239560744699445,
+      "plain_ler": 3.9534755311050966e-07,
+      "plain_relative_se": 0.13139810059447352,
+      "decodes_per_arm": 483631
+    },
+    {
+      "ler": 3.8172084573571974e-07,
+      "relative_se_plug_in": 0.07106497046603867,
+      "relative_se_certified": 0.0939043020887589,
+      "relative_se_certified_union": 0.10095760179063797,
+      "plain_ler": 4.5073995268212157e-07,
+      "plain_relative_se": 0.11671373546856685,
+      "decodes_per_arm": 547744
+    },
+    {
+      "ler": 4.5403603940301514e-07,
+      "relative_se_plug_in": 0.08706728165074022,
+      "relative_se_certified": 0.1102775866256731,
+      "relative_se_certified_union": 0.11760954044198413,
+      "plain_ler": 3.5916058981666477e-07,
+      "plain_relative_se": 0.13927048609187956,
+      "decodes_per_arm": 458247
+    }
+  ],
+  "mean": {
+    "ler": 4.450431388383365e-07,
+    "relative_se_plug_in": 0.08279577033577369,
+    "relative_se_certified": 0.1037031955168366,
+    "relative_se_certified_union": 0.11032091655987218,
+    "plain_ler": 4.017493652030987e-07,
+    "plain_relative_se": 0.12912744071830665,
+    "decodes_per_arm": 496540.6666666667
+  },
+  "wall_seconds_all": 91.86919947399292,
+  "direct": [
+    4.583333333333333e-07,
+    [
+      3.7669427331002333e-07,
+      5.524155866255062e-07
+    ],
+    240000000,
+    7277.718642512977
+  ]
+}

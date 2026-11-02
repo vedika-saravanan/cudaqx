@@ -148,7 +148,7 @@ def fixed_weight_estimate(
     so a pooled rate is negatively correlated with ``sum_r 1/L_r`` and
     underestimates the variance (by 20-40% in the BB72 onset regime).
     Strata with no failure in any round contribute zero; see
-    :func:`fixed_weight_variance_bound` for the conservative companion.
+    :func:`certified_variance` for the conservative companion.
     """
     L, F, w = _rounds(weights, round_labels, round_failures)
     rounds = L.shape[0]
@@ -158,34 +158,6 @@ def fixed_weight_estimate(
     estimate = float(np.dot(w, stratum_rates))
     variance = float(np.sum(w**2 * stratum_variance))
     return estimate, variance
-
-
-def fixed_weight_variance_bound(weights: np.ndarray,
-                                round_labels: list[np.ndarray],
-                                round_failures: list[np.ndarray],
-                                bound_events: float = ZERO_FAILURE_BOUND_EVENTS,
-                                families: np.ndarray | None = None) -> float:
-    """Variance of :func:`fixed_weight_estimate` with every stratum that
-    never failed set to a rule-of-three rate instead of zero: ``bound_events``
-    over the stratum's own labels, or over the labels of all never-failing
-    strata of its family when ``families`` are given (the family rate is
-    what the labels actually bound; per-stratum bounds are far looser).
-    Quoting the gain as a range between this and the plug-in makes the
-    asymmetry with plain sampling (whose variance contains whatever those
-    strata contribute) explicit."""
-    L, F, w = _rounds(weights, round_labels, round_failures)
-    rounds = L.shape[0]
-    per_round = F * (L - F) / (L**2 * np.maximum(L - 1.0, 1.0))
-    empty = F.sum(axis=0) == 0
-    trials = L.sum(axis=0).copy()
-    if families is not None:
-        families = np.asarray(families)
-        for family in np.unique(families[empty]):
-            members = empty & (families == family)
-            trials[members] = trials[members].sum()
-    bound = bound_events / trials
-    per_round[:, empty] = (bound * (1.0 - bound) / L)[:, empty]
-    return float(np.sum(w**2 * per_round.sum(axis=0) / rounds**2))
 
 
 def zero_group_break_even(weights: np.ndarray, round_labels: list[np.ndarray],
@@ -235,103 +207,85 @@ def certified_variance(
         weights: np.ndarray,
         round_labels: list[np.ndarray],
         round_failures: list[np.ndarray],
-        families: np.ndarray,
-        certification_labels: np.ndarray | None = None,
-        certification_failures: np.ndarray | None = None,
         bound_events: float = ZERO_FAILURE_BOUND_EVENTS) -> dict[str, object]:
     """Variance of :func:`fixed_weight_estimate` with the never-failing
-    strata charged for what the data cannot exclude.
+    strata charged for what the data cannot exclude (exposure-aware).
 
-    Strata that failed in the rounds keep the per-round plug-in.  A stratum
-    that failed only in the certification stage uses its certification
-    rate (independent data, so a valid plug-in for the variance; the point
-    estimate never uses certification samples).  Strata with no failure
-    anywhere are set, per family, to the rule-of-three rate of all the
-    family's failure-free labels, rounds plus certification
-    (``mixture``), or to the worst distribution of that family rate over
-    its strata (``worst_case``: every allowed failure in the stratum where
-    it costs the most variance, rates capped at 1).
+    Strata that failed keep the per-round plug-in.  For the set ``E`` of
+    strata with no failure in any round, with ``n_g`` labels each and
+    unknown true rates ``f_g``, the probability of the observation is
+    ``prod_g (1 - f_g)^{n_g} <= exp(-sum_g n_g f_g)``, so the event
+    ``sum_{g in E} n_g f_g > bound_events`` has probability at most
+    ``exp(-bound_events)`` (5% for 3).  Because the inequality holds path
+    by path for whatever labels were drawn, it also holds when the labels
+    were chosen adaptively from earlier rounds.  On the complementary
+    event the variance those strata add,
+    ``sum_g w_g^2 f_g (1 - f_g) I_g <= sum_g w_g^2 I_g f_g`` with
+    ``I_g = sum_r 1 / (R^2 L_{g,r})``, is a linear function of the rates
+    under one linear constraint, so its maximum puts the whole allowance
+    on the stratum with the largest ``w_g^2 I_g / n_g``:
+
+        certified = plug-in + max_{g in E} w_g^2 I_g min(1, bound_events / n_g).
+
+    A pooled family rate (``bound_events`` over the family's total
+    labels applied to every member) is *not* a bound: a stratum that
+    received fewer labels than its share of the mass can hide a higher
+    rate.  The bound is one-sided at level ``1 - exp(-bound_events)`` per
+    count stratum; combining several count strata needs a union bound
+    (``bound_events = ln(K / alpha)`` for ``K`` strata).
     """
     L, F, w = _rounds(weights, round_labels, round_failures)
-    families = np.asarray(families)
-    G = w.size
-    cert_L = (np.zeros(G) if certification_labels is None else np.asarray(
-        certification_labels, dtype=np.float64))
-    cert_F = (np.zeros(G) if certification_failures is None else np.asarray(
-        certification_failures, dtype=np.float64))
     inverse = round_inverse_labels(round_labels)
     per_round = (F * (L - F) /
                  (L**2 * np.maximum(L - 1.0, 1.0))).sum(axis=0) / L.shape[0]**2
     failed = F.sum(axis=0) > 0
-    cert_only = ~failed & (cert_F > 0)
-    empty = ~failed & ~cert_only
-    terms = np.where(failed, per_round, 0.0)
-    rate = np.divide(cert_F, cert_L, out=np.zeros(G), where=cert_L > 0)
-    terms = np.where(cert_only, rate * (1.0 - rate) * inverse, terms)
-    worst = terms.copy()
-    worst_family = 0.0
-    bound_rates = {}
-    for family in np.unique(families[empty]):
-        members = np.flatnonzero(empty & (families == family))
-        trials = float((L.sum(axis=0) + cert_L)[members].sum())
-        b = bound_events / trials
-        bound_rates[str(family)] = b
-        terms[members] = b * (1.0 - b) * inverse[members]
-        # Worst case: the family's allowed failures all in the stratum
-        # where they cost the most variance (rate b W_f / w_g, capped at 1).
-        W = w[members].sum()
-        concentrated = np.minimum(1.0, b * W / w[members])
-        worst[members] = 0.0
-        worst_family += float(
-            np.max(w[members]**2 * concentrated * (1.0 - concentrated) *
-                   inverse[members]))
-    return {
-        "mixture": float(np.sum(w**2 * terms)),
-        "worst_case": float(np.sum(w**2 * worst) + worst_family),
+    empty = ~failed
+    plug_in = float(np.sum(w[failed]**2 * per_round[failed]))
+    labels = L.sum(axis=0)
+    result = {
+        "plug_in": plug_in,
+        "certified": plug_in,
         "empty_mass": float(w[empty].sum()),
-        "bound_rates": bound_rates,
+        "bound_group": None,
+        "bound_rate": None,
     }
+    if np.any(empty):
+        rates = np.minimum(1.0, bound_events / np.maximum(labels, 1.0))
+        terms = np.where(empty, w**2 * inverse * rates, 0.0)
+        g = int(np.argmax(terms))
+        result["certified"] = plug_in + float(terms[g])
+        result["bound_group"] = g
+        result["bound_rate"] = float(rates[g])
+    return result
 
 
-def certification_floor(weights: np.ndarray, families: np.ndarray,
-                        empty: np.ndarray, rate_estimate: float,
-                        plain_decodes: int, epsilon: float, rounds: int,
-                        round_index: int,
+def certification_floor(weights: np.ndarray, empty: np.ndarray,
+                        rate_estimate: float, plain_decodes: int,
+                        epsilon: float, rounds: int, round_index: int,
                         current_labels: np.ndarray) -> np.ndarray:
     """Per-stratum minimum labels for round ``round_index`` (1-based) that
-    certify the never-failing families inside the estimate.
+    certify the never-failing strata inside the estimate.
 
-    With labels split by mass inside a family, the family's bound term in
-    :func:`certified_variance` is ``3 W_f^2 / N_f^2`` where ``N_f`` is its
-    total labels over the rounds.  The *sum* of those terms over the
-    never-failing families is required to be at most ``epsilon`` times the
-    plain-sampling variance ``f / N`` at the planned decode count.  The
-    cheapest split of that allowance (minimum total labels for a given
-    sum) gives family ``f`` the share ``W_f^(2/3) / sum W^(2/3)``, hence
-    ``N_f = W_f sqrt(3 N / (epsilon_f f))``, reached linearly over the
-    rounds.  Because these labels sit in the rounds they also shrink the
-    variance, so the bound falls as ``1/N_f^2`` rather than the ``1/N_f``
-    of samples kept outside the estimate.  The total certification labels
-    scale as ``sqrt(N)``, so their share of the budget falls as
-    ``1/sqrt(N)``.
+    With labels spread evenly over the rounds the bound term of an empty
+    stratum in :func:`certified_variance` is ``bound_events w_g^2 / n_g^2``.
+    Requiring the largest of them to be at most ``epsilon`` times the
+    plain-sampling variance ``f / N`` at the planned decode count gives
+    every empty stratum the same target ``n_g = w_g sqrt(bound_events N /
+    (epsilon f))``, reached linearly over the rounds.  Because these
+    labels sit in the rounds they also shrink the variance, so the bound
+    falls as ``1 / n_g^2``; the total certification labels scale as
+    ``sqrt(N)`` and their share of the budget falls as ``1 / sqrt(N)``.
     """
     w = np.asarray(weights, dtype=np.float64)
-    families = np.asarray(families)
     current = np.asarray(current_labels, dtype=np.float64)
     out = np.zeros(w.size, dtype=int)
     if rate_estimate <= 0 or not np.any(empty) or epsilon <= 0:
         return out
-    fams = np.unique(families[empty])
-    masses = np.array([w[empty & (families == f)].sum() for f in fams])
-    shares = masses**(2.0 / 3.0)
-    shares /= shares.sum()
-    for family, W, share in zip(fams, masses, shares):
-        members = np.flatnonzero(empty & (families == family))
-        target = W * math.sqrt(ZERO_FAILURE_BOUND_EVENTS * plain_decodes /
-                               (epsilon * share * rate_estimate))
-        target *= round_index / rounds
-        shortfall = max(0.0, target - current[members].sum())
-        out[members] = np.floor(shortfall * w[members] / W).astype(int)
+    scale = math.sqrt(ZERO_FAILURE_BOUND_EVENTS * plain_decodes /
+                      (epsilon * rate_estimate)) * round_index / rounds
+    target = w * scale
+    shortfall = np.maximum(0.0, target - current)
+    out[empty] = np.floor(shortfall[empty]).astype(int)
     return out
 
 
@@ -345,19 +299,19 @@ CERTIFY_FRACTION_POINTS_PER_DECADE = 40
 MIN_ESTIMATE_SHARE = 0.25
 
 
-def optimal_certify_fraction(weights: np.ndarray, families: np.ndarray,
-                             empty: np.ndarray, sigmas: np.ndarray,
-                             rate_estimate: float, plain_decodes: int,
+def optimal_certify_fraction(weights: np.ndarray, empty: np.ndarray,
+                             sigmas: np.ndarray, rate_estimate: float,
+                             plain_decodes: int,
                              labels_so_far: float) -> float | None:
     """Allowance ``epsilon`` for :func:`certification_floor` that minimises
     the projected certified variance from the data so far.
 
-    Certifying the never-failing families to a bound of ``epsilon f / N``
-    costs ``N_cert(epsilon) = sum_f W_f sqrt(3 N / (epsilon s_f f))``
-    labels (the floor rule's total), which the failing strata lose.  With
-    Neyman labels on the rest the plug-in variance is about
-    ``(sum_g w_g sigma_g)^2 / (N - N_cert)``, so the projected certified
-    variance is
+    Certifying the never-failing strata to a bound of ``epsilon f / N``
+    costs ``N_cert(epsilon) = W_E sqrt(bound_events N / (epsilon f))``
+    labels (the floor rule's total, ``W_E`` the empty mass), which the
+    failing strata lose.  With Neyman labels on the rest the plug-in
+    variance is about ``(sum_g w_g sigma_g)^2 / (N - N_cert)``, so the
+    projected certified variance is
 
         A / (N - N_cert(epsilon)) + epsilon f / N,
 
@@ -369,22 +323,19 @@ def optimal_certify_fraction(weights: np.ndarray, families: np.ndarray,
     failure yet the rate is read as one failure in the labels so far, the
     same floor :func:`shrunk_rates` uses.  Returns ``None`` only when no
     stratum is empty.  The choice only steers the allocation; the estimator
-    stays unbiased for any value.
+    stays unbiased for any value.  Measured against a fixed allowance this
+    rule realises more plug-in gain and certifies less at equal decodes
+    (it does not credit the failures its labels would discover), so it is
+    not the default.
     """
     w = np.asarray(weights, dtype=np.float64)
-    families = np.asarray(families)
     empty = np.asarray(empty, dtype=bool)
     if not np.any(empty):
         return None
     rate = max(float(rate_estimate), 1.0 / max(float(labels_so_far), 1.0))
     neyman = float(np.dot(w, np.asarray(sigmas, dtype=np.float64)))**2
-    fams = np.unique(families[empty])
-    masses = np.array([w[empty & (families == f)].sum() for f in fams])
-    shares = masses**(2.0 / 3.0)
-    shares /= shares.sum()
-    labels_per_sqrt = float(
-        np.sum(masses * np.sqrt(ZERO_FAILURE_BOUND_EVENTS * plain_decodes /
-                                (shares * rate))))
+    labels_per_sqrt = float(w[empty].sum()) * math.sqrt(
+        ZERO_FAILURE_BOUND_EVENTS * plain_decodes / rate)
     # Smallest allowance that leaves the failing strata their share.
     affordable = (labels_per_sqrt /
                   ((1.0 - MIN_ESTIMATE_SHARE) * plain_decodes))**2

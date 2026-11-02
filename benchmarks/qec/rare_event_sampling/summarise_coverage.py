@@ -12,7 +12,7 @@ reference reports for the same decoder and count, the script pools the
 plain conditional samples of every repeat of every report into a
 ground-truth rate, then checks how often each repeat's intervals cover it:
 the plug-in interval (per-round unbiased variance), the certified interval
-(plug-in plus the family rule-of-three terms) and, as a control, the plain
+(plug-in plus the exposure-aware never-failing bound) and, as a control, the plain
 estimator's own binomial interval.  It also reports the realised spread of
 the stratified estimates against the mean reported standard error (their
 ratio should be 1 if the plug-in is right) and bootstrap intervals on the
@@ -98,8 +98,7 @@ def main() -> None:
     repeats = entry["repeats"]
     est = np.array([r["estimate"] for r in repeats])
     sd_plugin = np.array([r["standard_error"] for r in repeats])
-    sd_cert = np.sqrt(
-        np.array([r["certified_variance_mixture"] for r in repeats]))
+    sd_cert = np.sqrt(np.array([r["certified_variance"] for r in repeats]))
     plain_est = np.array([r["plain_estimate_same_budget"] for r in repeats])
     plain_shots = np.array([r["plain_shots"] for r in repeats], dtype=float)
     sd_plain = np.sqrt(plain_est * (1 - plain_est) / plain_shots)

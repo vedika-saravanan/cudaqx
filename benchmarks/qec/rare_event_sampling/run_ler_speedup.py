@@ -5,7 +5,13 @@
 # This source code and the accompanying materials are made available under     #
 # the terms of the Apache License 2.0 which accompanies this distribution.     #
 # ============================================================================ #
-"""Logical-error-rate speedup and decoder cost of layer stratification.
+"""Projected logical-error-rate cost and speedup of layer stratification.
+
+Everything here is a cost *model* evaluated on measured inputs, not a
+completed matched-precision benchmark: the per-count gains were each
+measured at one budget and are assumed to hold at the budget each target
+rate implies (``implied_decodes_by_count`` reports those budgets so the
+extrapolation is visible), and ``f_k`` is held at its reference-rate value.
 
 Combines a fault-count spectrum (plain conditional sampling per count) with
 the per-count layer-stratification measurements into the quantities the
@@ -59,14 +65,23 @@ from rare_event import dem, strata
 RELATIVE_ERROR = 0.10
 
 
-def load_spectrum(path: str) -> dict[int, tuple[int, int]]:
-    """``{k: (trials, failures)}`` from a ``run_spectrum.py`` report."""
+def load_spectrum(
+        path: str) -> tuple[dict[int, tuple[int, int]], dict[float, float]]:
+    """``{k: (trials, failures)}`` from a ``run_spectrum.py`` report, plus
+    the exactly reweighted LER points it stored per target rate (empty
+    when the report has none)."""
     report = json.load(open(path))
     spectrum = report["spectrum"]
-    return {
+    counts = {
         int(k): (int(n), int(f)) for k, n, f in zip(
             spectrum["counts"], spectrum["trials"], spectrum["failures"])
     }
+    exact = {}
+    for rate, projection in (report.get("projections") or {}).items():
+        point = (projection.get("reweighted") or {}).get("point")
+        if point is not None:
+            exact[float(rate)] = float(point)
+    return counts, exact
 
 
 def load_gains(paths: str) -> dict[int, dict[str, float]]:
@@ -74,9 +89,9 @@ def load_gains(paths: str) -> dict[int, dict[str, float]]:
     (comma-separated; later reports override earlier ones per count).
 
     ``gain`` is the per-round plug-in gain (never-failing groups at rate
-    zero); ``gain_certified`` charges them at their family rule-of-three
-    bound (the certified gain, equal to the plug-in when nothing is
-    unmeasured).  The pilot is the stored first round of the first repeat,
+    zero); ``gain_certified`` charges them by the exposure-aware bound of
+    ``allocation.certified_variance`` (equal to the plug-in when nothing
+    is unmeasured).  The pilot is the stored first round of the first repeat,
     so uniform and mass-proportional pilots are both accounted for.
     """
     gains: dict[int, dict[str, float]] = {}
@@ -89,7 +104,7 @@ def load_gains(paths: str) -> dict[int, dict[str, float]]:
                 continue
             certified = pc.get("variance_gain_certified")
             if certified is None or not math.isfinite(certified):
-                certified = pc.get("variance_gain_bound", gain)
+                certified = gain
             pilot = int(sum(pc["repeats"][0]["round_labels"][0]))
             budget = int(pc.get("plain_shots_mean") or params["budget"])
             gains[int(k)] = {
@@ -183,7 +198,7 @@ def main() -> None:
                                                   args.reference_rate)
     rates = [float(r) for r in args.rates.split(",")]
     priors = dem.priors_at_rates(circuit, reference_rate, rates)
-    spectrum = load_spectrum(args.spectrum)
+    spectrum, exact_ler = load_spectrum(args.spectrum)
     gains = load_gains(args.layers)
     counts = sorted(spectrum)
     # f_k from the spectrum (unbiased, same source as the baseline tables);
@@ -227,9 +242,15 @@ def main() -> None:
         share = {
             k: P[k] * math.sqrt(f[k] * (1 - f[k])) / plain_sigma for k in counts
         }
+        # The stored exactly reweighted LER at this rate, when the spectrum
+        # run computed one; the cost model above uses the first-order value.
+        reweighted = next(
+            (v for r, v in exact_ler.items() if abs(r - rate) <= 1e-12 * rate),
+            None)
         rows.append({
             "rate": rate,
             "ler": ler,
+            "ler_exact_reweighted": reweighted,
             "ler_exact_head": ler_exact,
             "mass_below_measured": below,
             "mass_above_measured": tail,
@@ -248,7 +269,9 @@ def main() -> None:
             "plain_variance_share_by_count": share,
         })
         print(
-            f"p={rate:.1e}: LER={ler:.2e}  decodes for {eps:.0%}: direct "
+            f"p={rate:.1e}: LER={ler:.2e}" +
+            (f" (exact reweighting {reweighted:.2e})" if reweighted else "") +
+            f"  projected decodes for {eps:.0%}: direct "
             f"{direct_cost:.2e}, count-stratified {plain_cost:.2e}, layer-"
             f"stratified {layer_plugin:.2e} (certified {layer_bound:.2e}, fixed "
             f"pilot {layer_fixed:.2e}); speedup x{plain_cost/layer_plugin:.2f}"

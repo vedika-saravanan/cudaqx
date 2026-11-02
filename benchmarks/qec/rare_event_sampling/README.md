@@ -24,16 +24,21 @@ estimators are implemented and compared on the same circuits and decoders:
    fixed fraction of the plain-sampling variance (`--certify-fraction
    0.15`); a data-driven alternative (`auto`) is implemented and measured.
 
-`RESULTS.md` holds every measured number, the stress tests against direct
-Monte Carlo (coverage, repeat-to-repeat spread, direct controls at four
-rates) and the conclusions. In short: on BB72 with Relay-BP (GPU) and
-BP-OSD (CPU) the method is unbiased, its error bars are calibrated, it
-beats direct Monte Carlo by 4x at p = 1e-3 and 930-2000x at p = 1e-4 in
-decoder calls and wall time, and it beats the unbiased IBM baseline by
-1.4-1.6x certified (2.5-3.5x realised for Relay-BP, 7-8x for BP-OSD) at
-the rates where the onset stratum dominates. For PyMatching on the
-surface code the layer stratification adds about 3% and the count
-stratification alone is the right tool.
+`RESULTS.md` holds every number, labelled measured or projected, the
+stress tests against direct Monte Carlo (direct controls at four rates,
+100-repeat coverage, ten-repeat spreads, a matched-precision run at
+p = 1e-4) and the conclusions. In short, on BB72 with Relay-BP (GPU) and
+BP-OSD (CPU): the spectrum is unbiased against direct Monte Carlo at every
+rate, LACE's plug-in error bars are calibrated and its certified bars
+conservative, and measured per count LACE beats the unbiased IBM baseline
+by 2.0-2.8x certified (3.3-3.9x realised) for Relay-BP and 2.2-2.9x
+certified (5-7x realised) for BP-OSD at the onset count. At the LER level
+the cost model projects 2.9x over IBM and 930x over direct Monte Carlo for
+Relay-BP at p = 1e-4; the one completed matched-precision check realised
+2.4x and 690x in decoder calls (480x in wall time) and landed inside the
+direct interval. For PyMatching on the surface code the layer structure
+adds 1.2x at onset and about 3% above it, so count strata alone are the
+right tool there.
 
 ## Layout
 
@@ -43,7 +48,7 @@ stratification alone is the right tool.
 | `rare_event/strata.py` | Exact fault-count stratification for unequal mechanism probabilities: Poisson-binomial masses, exact conditional subset sampler (positions by inverse transform on cumulative suffix tables, about 1 us per shot at any batch size), exact cross-rate importance weights. |
 | `rare_event/spectrum.py` | Failure spectrum `f(k)` with exact binomial intervals, cross-rate reweighting and the IBM `f3`/`f5` ansatz fits (baseline). |
 | `rare_event/layers.py` | Exact layer-composition strata of a count stratum (product of per-layer Poisson-binomial masses), position and position + core grouping, exact group sampling vectorised by layer and count. |
-| `rare_event/allocation.py` | Hierarchical shrinkage of group rates, Neyman rounds with a proportional floor, fixed-weight combination of rounds (unbiased under adaptive allocation), per-round unbiased variance, certified variance (rule-of-three bound per never-failing family), the certification floor and the data-driven allowance `optimal_certify_fraction`. |
+| `rare_event/allocation.py` | Hierarchical shrinkage of group rates, Neyman rounds with a proportional floor, fixed-weight combination of rounds (unbiased under adaptive allocation), per-round unbiased variance, certified variance (exposure-aware bound: zero failures in the never-failing groups bound the label-weighted sum of their rates, valid under adaptive allocation), the certification floor and the data-driven allowance `optimal_certify_fraction`. |
 | `rare_event/onset.py` | Minimal failing sets by descent from observed failures (used by the baseline to test IBM's enclosure assumption). |
 | `rare_event/decoders.py` | `FailureOracle` and adapters for PyMatching, `ldpc` BP-OSD and the CUDA-Q QEC `nv-qldpc-decoder` (Relay-BP), all behind one batch `decode` contract. |
 | `rare_event/stats.py` | Clopper-Pearson intervals and error propagation. |
@@ -55,6 +60,7 @@ stratification alone is the right tool.
 | `recompute_layer_strata.py` | Rebuild report summaries from stored rounds without new decodes. |
 | `run_ler_speedup.py` | LER-level cost and speedup versus target rate from a spectrum plus the per-count layer gains; `--combine` plots several decoders (`figures/ler_speedup.png`). |
 | `summarise_coverage.py` | Coverage and repeat-to-repeat spread of a many-repeat report against a pooled ground truth; bootstrap interval on the realised gain. |
+| `validate_ler.py` | Matched-precision check of the LER projection: assembles LER(p) with plug-in and certified errors from completed per-count LACE runs at the budgets the projection implied, beside the count-strata estimate at the same decodes and the direct control. |
 | `tests/` | Unit tests on toy models: exact laws of both samplers, mass identities, unbiasedness of the fixed-weight estimator, certified variance, allowance rule, propagation. |
 | `results/` | JSON reports behind every number in `RESULTS.md`. |
 
@@ -102,10 +108,12 @@ python run_lace.py --circuit bb72 --detectors-per-layer 36 \
 ```
 
 `--certify-fraction` takes a fixed allowance (default `0.15`; the
-certification floors may push the realised decode count above `--budget`),
-`auto` (allowance chosen each round within the budget; keeps the budget
-but certifies less at equal decodes, see `RESULTS.md` section 6), or
-`none`. `--grouping position_core` adds the largest single-layer
+certification floors are added on top of the allocation, so the realised
+decode count exceeds `--budget` by 1.1x at 600k and up to 2.5x at 200k;
+the budget is a floor, not a cap),
+`auto` (allowance chosen each round from the data; realises more plug-in
+gain and certifies 15-35% less at equal decodes, see `RESULTS.md`
+section 6), or `none`. `--grouping position_core` adds the largest single-layer
 count to the statistic (used for BP-OSD at k = 4). For BP-OSD use
 `--decoder bposd`; for surface codes `--circuit surface:5:5
 --layers-from-coordinates --decoder pymatching`.
@@ -114,7 +122,7 @@ LER-level speedup from a spectrum and the per-count reports:
 
 ```bash
 python run_ler_speedup.py --circuit bb72 --spectrum results/bb72_relay_spectrum_lowk_spectrum.json \
-    --layers results/layers_bb72_relay_position_inround_eps015.json,results/layers_bb72_relay_position_inround_eps03_k4.json,results/layers_bb72_relay_position.json \
+    --layers results/layers_bb72_relay_position.json,results/layers_bb72_relay_position_inround_eps015.json,results/layers_bb72_relay_position_inround_eps03_k4.json \
     --exact-head 2:3.18e-7 --rates 0.002,0.001,0.0005,0.0002,0.0001 \
     --label "Relay-BP, BB72" --output results/ler_speedup_bb72_relay.json
 python run_ler_speedup.py --combine results/ler_speedup_bb72_relay.json,results/ler_speedup_bb72_bposd.json,results/ler_speedup_surface5_pymatching.json \
