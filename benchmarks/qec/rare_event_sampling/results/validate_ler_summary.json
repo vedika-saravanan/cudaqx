@@ -6,8 +6,11 @@
     4,
     5
   ],
-  "covered_mass": 0.03669180590593932,
+  "covered_mass": 0.258456758111298,
+  "omitted_contribution_measured": 2.7645253576141052e-09,
+  "omitted_unmeasured_count_mass": 3.9135780502845744e-11,
   "exact_head": {
+    "1": 0.0,
     "2": 3.18e-07
   },
   "repeats": [

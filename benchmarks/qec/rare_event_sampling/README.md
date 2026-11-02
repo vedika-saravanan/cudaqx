@@ -25,24 +25,26 @@ estimators are implemented and compared on the same circuits and decoders:
    charge is reported as a labelled heuristic, not a guarantee, beside a
    worst-case interval (plug-in uncertainty plus a simultaneous upper
    allowance for the never-failing groups; full-interval coverage is
-   empirical) that shows a rigorous certificate is not achievable at these
-   budgets.
+   empirical) that is too wide to certify a gain at these budgets with the
+   bounds tried; tighter sequential methods were not investigated.
 
 `RESULTS.md` holds every number, labelled measured or projected, the
 stress tests against direct Monte Carlo (direct controls at four rates,
-100-repeat coverage, ten-repeat spreads, a matched-precision run at
-p = 1e-4) and the conclusions. In short, on BB72 with Relay-BP (GPU) and
+100-repeat coverage, ten-repeat spreads, a same-decodes end-to-end run
+at p = 1e-4) and the conclusions. In short, on BB72 with Relay-BP (GPU) and
 BP-OSD (CPU): the spectrum is unbiased against direct Monte Carlo at every
 rate, LACE's plug-in error bars are calibrated, and measured per count
-LACE realises 3.3-3.9x the variance reduction of the unbiased IBM baseline
+LACE realises 3.3-3.9x the variance reduction of count-conditioned
+sampling (our implementation of Fail fast's failure-spectrum technique)
 for Relay-BP at the onset count (2.55x [1.71, 3.81] measured across 100
 repeats at half the budget); for BP-OSD the plug-in estimate is 7x but
 ten repeats give 3.5x [0.83, 14.7], which does not settle it. At the LER
 level the cost model projects
-2.9x over IBM and 930x over direct Monte Carlo for Relay-BP at p = 1e-4;
-the one completed matched-precision check realised 2.4x over IBM and, in
-actual decoder calls, 483x over the direct run (641x at equal precision),
-landing inside the direct interval. No worst-case guarantee of a gain is
+2.9x over count strata and 930x over direct Monte Carlo for Relay-BP at p = 1e-4;
+the one completed same-decodes end-to-end check gave a 2.4x variance
+ratio over count strata and, in actual decoder calls, 483x fewer than the
+direct run (641x when both are normalised to 10% relative error), landing
+inside the direct interval. No worst-case guarantee of a gain is
 claimed: the valid allowance for never-failing groups is too wide to
 certify anything here, the full worst-case interval's coverage is
 empirical, and `RESULTS.md` section 1 records the two invalid attempts
@@ -70,7 +72,7 @@ right tool there.
 | `recompute_layer_strata.py` | Rebuild report summaries from stored rounds without new decodes. |
 | `run_ler_speedup.py` | Projected LER-level cost and speedup versus target rate from a spectrum plus the per-count gains (a cost model, labelled as such); `--combine` plots several decoders (`figures/ler_speedup.png`). |
 | `summarise_coverage.py` | Coverage and repeat-to-repeat spread of a many-repeat report against a pooled ground truth for the plug-in, heuristic and worst-case intervals; bootstrap interval on the realised gain. |
-| `validate_ler.py` | Matched-precision check of the LER projection: assembles LER(p) with plug-in, heuristic and worst-case errors from completed per-count LACE runs at the budgets the projection implied, beside the count-strata estimate at the same decodes and the direct control, reporting actual and precision-normalised call ratios separately. |
+| `validate_ler.py` | Same-decodes end-to-end check of the LER projection: assembles LER(p) with plug-in, heuristic and worst-case errors from completed per-count LACE runs at the budgets the projection implied, beside the count-strata estimate at the same decodes and the direct control, reporting actual and precision-normalised call ratios separately. |
 | `tests/` | Unit tests on toy models: exact laws of both samplers, mass identities, unbiasedness of the fixed-weight estimator, the never-failing charges (including the data-selection counterexample the heuristic fails and the worst-case allowance passes), the allowance rule, propagation. |
 | `results/` | JSON reports behind every number in `RESULTS.md`. |
 
@@ -119,8 +121,8 @@ python run_lace.py --circuit bb72 --detectors-per-layer 36 \
 
 `--allowance` takes a fixed value (default `0.15`; the allowance floors
 are added on top of the allocation, so the realised decode count exceeds
-`--budget` by 1.1x at 600k and up to 2.5x at 200k; the budget is a floor,
-not a cap), `auto` (chosen each round from the data; realises more
+`--budget` by 1.5-1.8x at 600k, 2.6x at 200k and 3.1x at 120k; the
+budget is a floor, not a cap), `auto` (chosen each round from the data; realises more
 plug-in gain and leaves a larger heuristic charge at equal decodes, see
 `RESULTS.md` section 6), or `none`. `--grouping position_core` adds the
 largest single-layer count to the statistic (used for BP-OSD at k = 4).
@@ -139,11 +141,13 @@ python run_ler_speedup.py --combine results/ler_speedup_bb72_relay.json,results/
     --figure figures/ler_speedup.png
 ```
 
-Matched-precision check of one projected row with completed runs:
+Same-decodes end-to-end check of one projected row with completed runs
+(declare the exactly enumerated low weights so omitted counts are accounted):
 
 ```bash
-python validate_ler.py --circuit bb72 --rate 1e-4 --exact-head 2:3.18e-7 \
+python validate_ler.py --circuit bb72 --rate 1e-4 --exact-head 1:0,2:3.18e-7 \
     --direct results/direct_mc_bb72_relay_1e-4.json \
+    --spectrum results/bb72_relay_spectrum_lowk_spectrum.json \
     results/validate_1e4_bb72_relay_k3.json results/validate_1e4_bb72_relay_k4.json \
     results/validate_1e4_bb72_relay_k5.json
 ```

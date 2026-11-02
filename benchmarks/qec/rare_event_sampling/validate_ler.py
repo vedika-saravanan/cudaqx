@@ -5,7 +5,7 @@
 # This source code and the accompanying materials are made available under     #
 # the terms of the Apache License 2.0 which accompanies this distribution.     #
 # ============================================================================ #
-"""Matched-precision check of the LER projection with completed LACE runs.
+"""Same-decodes end-to-end check of the LER projection with completed LACE runs.
 
 ``run_ler_speedup.py`` projects the decoder calls LACE needs for a target
 relative error at a target rate from gains measured at other budgets.  This
@@ -21,9 +21,17 @@ estimate propagated through the exact count masses, the plain conditional
 and the realised decodes and wall time, so the projected cost can be read
 against a run that paid for its pilot, allocation and sampling.  Counts
 not covered by a report contribute their mass to a reported tail and
-nothing to the variance.  The worst-case bound is recomputed from the
-stored rounds at level ``alpha / K`` per count so it holds jointly over
-the ``K`` covered counts.
+nothing to the variance.  With ``--spectrum`` the contribution of the
+counts the reports do not cover is estimated from the spectrum's measured
+f(k) for the counts it has and bounded by the bare count mass beyond
+them, so the omitted-count error is quantified instead of assumed small.
+The worst-case allowance is recomputed from the stored rounds at level
+``alpha / K`` per count so it holds jointly over the ``K`` covered
+counts.  The comparison is at equal realised decodes per arm (the plain
+count-strata arm of each report is drawn at the same decode count as its
+LACE arm); the relative errors therefore differ between arms, and the
+decodes needed for a common target error are obtained by scaling each
+arm's realised relative error.
 
 Two approximations are deliberate and stated: the per-count estimates were
 sampled at the reference physical rate and are combined with the target
@@ -67,6 +75,10 @@ def main() -> None:
     parser.add_argument("--direct",
                         default=None,
                         help="Optional run_direct_mc.py report at --rate.")
+    parser.add_argument("--spectrum",
+                        default=None,
+                        help="Optional run_spectrum.py report; its measured "
+                        "f(k) quantify the counts the LACE reports omit.")
     args = parser.parse_args()
 
     circuit, reference_rate = common.load_circuit(args.circuit,
@@ -83,7 +95,7 @@ def main() -> None:
             per_count[int(k)] = pc["repeats"]
             weights_of[int(k)] = np.array([g["weight"] for g in pc["groups"]])
     counts = sorted(per_count)
-    pmf = strata.poisson_binomial_pmf(priors, max(counts))
+    pmf = strata.poisson_binomial_pmf(priors, priors.size)
     exact = {}
     for item in filter(None, args.exact_head.split(",")):
         k, value = item.split(":")
@@ -91,6 +103,25 @@ def main() -> None:
     head = sum(float(pmf[k]) * v for k, v in exact.items())
     covered = sum(float(pmf[k]) for k in counts) + sum(
         float(pmf[k]) for k in exact)
+    # Counts neither covered by a report nor by the exact head: estimate
+    # their LER contribution from the spectrum where it measured f(k) and
+    # bound the rest by the bare count mass (f <= 1).
+    omitted_measured = 0.0
+    omitted_bound_mass = 0.0
+    spectrum_f = {}
+    if args.spectrum:
+        sp = json.load(open(args.spectrum))["spectrum"]
+        spectrum_f = {
+            int(k): float(f)
+            for k, f in zip(sp["counts"], sp["failure_fraction"])
+        }
+    for k in range(priors.size + 1):
+        if k in per_count or k in exact or k == 0:
+            continue
+        if k in spectrum_f:
+            omitted_measured += float(pmf[k]) * spectrum_f[k]
+        else:
+            omitted_bound_mass += float(pmf[k])
     repeats = min(len(per_count[k]) for k in counts)
     results = []
     for i in range(repeats):
@@ -132,7 +163,10 @@ def main() -> None:
         direct = (d["estimate"], d["interval_95"], d["shots"], d["seconds"])
 
     print(f"p = {args.rate:g}: counts {counts} cover {covered:.4f} of the mass "
-          f"(exact head {head:.2e}); {repeats} complete repeats, "
+          f"(exact head {head:.2e}); omitted counts contribute "
+          f"{omitted_measured:.2e} by the spectrum's measured f(k) plus at "
+          f"most {omitted_bound_mass:.2e} of unmeasured count mass; "
+          f"{repeats} complete repeats, "
           f"{wall / 60:.1f} min of wall time for all repeats and both arms "
           f"(not a per-arm measurement); per-count estimates sampled at "
           f"p = {reference_rate:g} and combined with the p = {args.rate:g} "
@@ -179,6 +213,8 @@ def main() -> None:
             "reference_rate": reference_rate,
             "counts": counts,
             "covered_mass": covered,
+            "omitted_contribution_measured": omitted_measured,
+            "omitted_unmeasured_count_mass": omitted_bound_mass,
             "exact_head": exact,
             "repeats": results,
             "mean": mean,

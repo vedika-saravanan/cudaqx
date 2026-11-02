@@ -11,7 +11,7 @@ p = 3e-3, with PyMatching.
 
 Two kinds of number appear below and are labelled throughout. *Measured*
 numbers come from completed runs: per-count gains, repeats, coverage, the
-direct controls and the matched-precision check of section 5. *Projected*
+direct controls and the same-decodes end-to-end check of section 5. *Projected*
 numbers come from the cost model of `run_ler_speedup.py`, which combines
 measured per-count gains with exact count masses to estimate decoder calls
 at target rates where no run was made; section 4 is projected and says how
@@ -87,17 +87,42 @@ supermartingale exp(f sum of labels) times the no-failure indicator, and
 sums the charges of all empty groups (`allocation.never_failing_bounds`).
 That part is a valid bound on what the never-failing groups can
 contribute. The groups that did fail keep their plug-in variance
-estimate, which is not an upper bound, so the worst-case *interval* is
+estimate; that estimate is unbiased per round given the round's labels,
+with cross-round terms vanishing by martingale orthogonality, but it is
+not unbiased conditional on the data-selected event that the group
+failed, and it is not an upper bound, so the worst-case *interval* is
 plug-in uncertainty plus a simultaneous allowance, not a rigorous
 confidence interval, and its coverage is reported empirically like the
 others' (an exact binomial check of the construction on a one-group
 example gives 93.5% at nominal 95%). Section 3 shows what the allowance
 alone would certify: nothing. At 1M decodes per stratum it must allow
 twenty to forty empty groups to sit simultaneously at six over their
-label counts, ten to twenty times any plausible rate. That is a property
-of worst-case allowances for stratified estimators with unobserved
-strata, not of this estimator. What LACE can honestly claim is a plug-in
-error bar whose coverage has been measured (section 5), hence the name.
+label counts, ten to twenty times any plausible rate. That is the price
+of the simple union-bound construction used here; whether a rigorous
+sequential method (confidence sequences in the sense of Howard et al.)
+can be made tight enough for LACE was not investigated and is open. What
+LACE can claim today is a plug-in error bar whose coverage has been
+measured in one configuration (section 5), hence the name.
+
+*Conditions the unbiasedness argument relies on, as implemented.* Each
+round's labels, including the allowance floors, are computed from the
+pilot and the earlier rounds only, then fixed before the round is drawn;
+no round is extended or stopped on its own outcomes. The pilot is used
+for allocation and excluded from the point estimate. Hierarchical
+shrinkage steers allocation only; the reported estimate uses the raw
+group means. Every group receives at least 100 labels per round, so
+every weight has a measured rate. The pooled "rest" group is sampled by
+drawing its compositions in proportion to their exact masses. Each
+mechanism is assigned to exactly one layer, the earliest detection layer
+it touches; mechanisms touching no detector form their own layer, which
+counts in the compositions but not in the span statistics. The DEM is
+built with `decompose_errors=False` and `flatten_loops=True`, and
+components a decomposed DEM would separate with `^` are merged back into
+one mechanism, so the sampled model is Stim's independent-mechanism
+model as stated. The decoder keeps the reference-rate priors at every
+target rate. A failure is any logical observable predicted wrongly, or a
+non-converged decode, the same definition in every arm including the
+direct control.
 
 The same stored spectrum answers every target rate; LACE's per-count gains
 enter the LER-level cost through the exact count masses.
@@ -189,7 +214,8 @@ a 1 / f wall (`results/layers_surface7_*`). The heuristic gains sit at
 2.0-2.9x for the BP decoders and track the sqrt(N) scaling of the
 allowance cost. The worst-case column is below 1 everywhere except where
 nothing is unobserved: a rigorous worst-case certificate of a gain is not
-available at these budgets, and section 1 explains why that is structural.
+available at these budgets with the bounds tried, and section 1 says what
+was and was not attempted.
 BP-OSD's 7x plug-in gain comes with 88-93% of its onset mass never
 failing, so it leans most on the calibration evidence, and its ten
 repeats (3.5x [0.83, 14.7]) are too few to confirm it; it is a plug-in
@@ -261,9 +287,9 @@ the direct interval at every rate. This validates the count-stratified
 spectrum and its exact reweighting, the core shared with the IBM baseline;
 LACE's own per-count estimates are validated by the repeats and the
 coverage test below, and the whole chain at one rate by the
-matched-precision run.
+same-decodes end-to-end run.
 
-**Matched-precision check of the p = 1e-4 projection.** Section 4 projects
+**Same-decodes end-to-end check of the p = 1e-4 projection.** Section 4 projects
 2.5e5 decodes for 10% at p = 1e-4 with the Relay-BP gains, against 7.3e5
 for count strata. `validate_ler.py` assembles LER(1e-4) from complete LACE
 runs at the per-count budgets the projection implies (k = 3 at a 200k
@@ -272,12 +298,19 @@ seed 20261103; `results/validate_1e4_bb72_relay_k{3,4,5}.json`,
 `results/validate_ler_summary.json`), with the three variances propagated
 through the exact count masses, the plain count-strata estimate from the
 same reports at the same decode count, and the realised cost including
-pilot, allocation and sampling. Two approximations are deliberate: the
-per-count estimates were sampled at the reference rate p = 2e-3 and are
-combined with the p = 1e-4 count masses, the same first-order assumption
-as the cost model (the spectrum's exact reweighting agrees with it within
-2.5%); and the wall time is the reports' total for both arms and all
-repeats, not a per-arm measurement.
+pilot, allocation and sampling. The comparison is at equal realised
+decodes per arm, so the two arms reach different relative errors; the
+decodes each would need for a common 10% target are then obtained by
+scaling its realised relative error. Three approximations are deliberate
+and quantified: the per-count estimates were sampled at the reference
+rate p = 2e-3 and are combined with the p = 1e-4 count masses, the same
+first-order assumption as the cost model (the spectrum's exact
+reweighting agrees with it within 2.5%); the counts not covered by a
+report (k = 6..8, measured in the spectrum; k >= 9, not measured) add
+2.8e-9 by the spectrum's f(k), 0.7% of the LER, plus at most 3.9e-11 of
+bare count mass, while k = 1 and k = 2 are exact by enumeration; and the
+wall time is the reports' total for both arms and all repeats, not a
+per-arm measurement.
 
 | | LACE | count strata, same decodes | direct MC |
 |---|---|---|---|
@@ -287,10 +320,13 @@ repeats, not a per-arm measurement.
 | decodes for 10%, scaled from the realised plug-in SE | 3.4e5 | 8.3e5 | 2.4e8 |
 | wall time | 1.5 min for 3 repeats and both arms | included | 121 min |
 
-The realised variance gain at equal decodes is 2.43x plug-in and 1.55x
-heuristic against the projected 2.88x and 1.97x, so the projection
-overstates the k = 3 gain at this smaller budget by 20-25%, as its own
-"below measured budget" flag warns. The realised decodes are twice the
+The variance ratio from the realised plug-in standard errors of the two
+arms is 2.43x (heuristic 1.55x) against the projected 2.88x and 1.97x,
+so at this budget, four times below the one the k = 3 gain was measured
+at, the observed variance ratio was 16% below the projection (the
+projection 19% above the observation), as its own
+"below measured budget" flag warns. This is one observation of the
+discrepancy, not a general forecasting margin. The realised decodes are twice the
 nominal budget because of the allowance floors (section 6), which is why
 LACE needs 3.4e5 rather than 2.5e5 decodes for 10%. Against direct Monte
 Carlo the two runs differ by 483x in actual decoder calls (2.4e8 against
@@ -302,15 +338,18 @@ remain projections.
 
 **Ten independent repeats, Relay-BP k = 3** (allowance 0.15, 600k budget,
 1.07M decodes per arm; `..._eps015_10rep.json`). Pooled truth from the
-plain samples of all Relay-BP position reports: f(3) = 9.21e-5 from
-12,150 failures (0.9%). Stratified mean +0.0% from truth; realised
+plain samples of the other eleven Relay-BP position reports, the
+evaluated report excluded: f(3) = 9.21e-5 from 11,153 failures (0.9%).
+Stratified mean +0.9% from truth (0.4 sigma with the truth's own error);
+realised
 variance gain across repeats 3.35 [95% bootstrap 1.67, 6.10] against a
 mean reported plug-in gain of 3.05, heuristic 1.97 (per-repeat 1.32-2.70)
 and worst case 0.25.
 
 **Ten independent repeats, BP-OSD k = 3** (allowance 0.3, 1.2M budget,
-2.1M decodes per arm; `..._eps03_1p2M_10rep.json`). Stratified mean +3.0%
-from a 1060-failure pooled truth, 1.0 sigma with the truth's own error.
+2.1M decodes per arm; `..._eps03_1p2M_10rep.json`). Stratified mean
+-0.1% from a 370-failure pooled truth drawn from the other five BP-OSD
+reports (5.2% truth error).
 Reported plug-in gains 5.5-14.8 (median 7.3), heuristic 2.14-3.37 (median
 2.56), worst case 0.13-0.18. The realised gain across ten repeats, 3.5
 [0.83, 14.7], is too wide to pin the plug-in figure better than a factor
@@ -318,27 +357,35 @@ Reported plug-in gains 5.5-14.8 (median 7.3), heuristic 2.14-3.37 (median
 
 **Coverage, 100 repeats, Relay-BP k = 3** (allowance 0.15, 200k budget,
 5.1e5 decodes per arm, about 50 failures each; `..._eps015_coverage.json`,
-`summarise_coverage.py`). Against the pooled truth the plug-in interval
-covered 67% and 94% of the time at the 68% and 95% levels; the heuristic
-interval 78% and 98%; the worst-case interval 99% and 100%; the plain
-binomial interval 71% and 94%. The realised standard deviation equals the
-mean reported plug-in standard error (ratio 1.00), is 0.79x the heuristic
-one and 0.28x the worst-case one. Realised gain 2.55 [1.71, 3.81] against
-2.70 reported (plug-in), 1.69 (heuristic; per-repeat 0.76-2.90) and 0.21
-(worst case). Stratified mean 1.8% below truth, 1.3 sigma.
+`summarise_coverage.py`). The truth is pooled from the plain samples of
+the other eleven Relay-BP position reports, the evaluated report
+excluded: f(3) = 9.28e-5 from 7481 failures, 1.2% relative error, small
+against the 8-13% half-widths being scored. Against it the plug-in
+interval covered 67% and 93% of the time at the 68% and 95% levels; the
+heuristic interval 77% and 98%; the worst-case interval 99% and 100%;
+the plain binomial interval 70% and 94%. The realised standard deviation
+equals the mean reported plug-in standard error (ratio 1.00), is 0.79x
+the heuristic one and 0.28x the worst-case one. Realised gain 2.55 [1.71,
+3.81] against 2.70 reported (plug-in), 1.69 (heuristic; per-repeat
+0.76-2.90) and 0.21 (worst case). The stratified mean is 2.8% below the
+truth, 1.9 sigma with the truth's error included; the ten-repeat run at
+the larger budget is +0.9%, so this is noted and not resolved.
 
-What the tests establish: the count-stratified spectrum is unbiased
-against an independent control at every rate of the LER table and the
-whole LACE chain at p = 1e-4; the plug-in standard error is calibrated at
-50-100 failures per arm and conservative by 1.3x below that, which is what
-"calibrated" in the name refers to; the heuristic interval is conservative
-(78% at nominal 68%) but carries no guarantee; the worst-case interval is
-a valid allowance on the never-failing part, far too wide to be useful,
-and not a confidence interval for the whole estimate; the plug-in gains
-are what the
+What the tests establish: the count-stratified spectrum agrees with an
+independent control at every rate of the LER table and the whole LACE
+chain at p = 1e-4 lands inside the direct interval; the plug-in standard
+error is calibrated at 50-100 failures per arm in this one configuration
+(code, decoder, count, grouping, budget) and conservative by 1.3x at the
+larger budget, which is what "calibrated" in the name refers to and no
+more; the heuristic interval is conservative (77% at nominal 68%) but
+carries no guarantee; the worst-case interval is a valid allowance on
+the never-failing part, far too wide to be useful, and not a confidence
+interval for the whole estimate; the plug-in gains are what the
 estimator realises, confirmed to 30% for Relay-BP and to a factor 2 for
-BP-OSD; and the cost projection overstates the gain by about a quarter
-when it extrapolates to a budget four times below the measured one.
+BP-OSD; and in the one cost-projection row that was checked, the
+observed variance ratio was 16% below the projection when extrapolated
+to a budget four times below the measured one. Full-LER coverage has not been measured: three
+end-to-end repeats are not a coverage test.
 
 **Wall time.** Direct Monte Carlo ran at 30 us per shot end to end. The
 stratified runs above cost 90-103 us per decode, all of the excess in the
@@ -365,8 +412,10 @@ those groups eat the budget; too loose and the heuristic charge dominates.
 Two facts about the mechanism matter for reading the numbers. First, the
 allowance floors and the per-group minimum labels are added on top of the
 Neyman allocation rather than taken from it, so the realised decodes
-exceed the nominal `--budget`: by 1.6-2.5x at a 200k budget and about 1.1x
-at 600k for the fixed rule, and by 1.6x at 200k for `auto`. The nominal
+exceed the nominal `--budget`: for the fixed rule by 1.5-1.8x at a 600k
+budget, 2.6x at 200k and 3.1x at 120k, and for `auto` by 1.6x at every
+budget tried. (An earlier version of this document said 1.1x at 600k;
+that was wrong.) The nominal
 budget is a floor on what the run spends, not a cap; every gain in this
 document is quoted at the realised count, and the realised count is what
 the cost projection should be compared with. Second, `optimal_allowance`
@@ -434,15 +483,16 @@ this branch.
 
 ## 8. Conclusion
 
-Exact fault-count stratification with exact reweighting is the unbiased
-core of IBM's method and already beats direct Monte Carlo by two to three
-orders of magnitude at LER ~ 1e-7; IBM's ansatz on top of it is biased by
-up to 2x on BB72 and should not be used. LACE keeps that core, adds no
-model, and is verified where it can be: the spectrum against an
-independent direct control at every rate, the per-count estimates by
-plug-in intervals with measured coverage over 100 repeats, and the whole
-chain at p = 1e-4 by a matched-precision run that lands inside the direct
-interval. Measured per count against the unbiased IBM baseline it realises
+Count-conditioned sampling with exact reweighting, our implementation
+of the failure-spectrum technique of Fail fast, is unbiased and already
+beats direct Monte Carlo by two to three orders of magnitude at
+LER ~ 1e-7; the ansatz extrapolation that Fail fast adds on top of it is
+biased by up to 2x on BB72 with Relay-BP in our fit and should not be
+used there. LACE keeps that core, adds no model, and is verified where it
+can be: the spectrum against an independent direct control at every
+rate, the per-count estimates by plug-in intervals with measured coverage
+over 100 repeats in one configuration, and the whole chain at p = 1e-4 by
+a same-decodes end-to-end run that lands inside the direct interval. Measured per count against the unbiased IBM baseline it realises
 3.3-3.9x for Relay-BP at onset (2.55x [1.71, 3.81] over 100 repeats at
 half the budget) and a 7x plug-in estimate for BP-OSD that ten repeats
 (3.5x [0.83, 14.7]) leave unconfirmed, about 1.4x for matching on the
@@ -454,8 +504,9 @@ error bar whose calibration has been measured and a labelled heuristic
 charge that has been conservative in every test. At the LER level the cost
 model projects 2.9x over IBM and 930x over direct Monte Carlo for Relay-BP
 at p = 1e-4; the one completed check realised 2.4x and, against the direct
-run, 483x in actual decoder calls and 641x at equal precision, so the
-projections should be read with about a quarter of their gain in reserve.
-The nominal budget is a floor, not a cap. The natural next study is BB144
+run, 483x fewer actual decoder calls and 641x when both arms are
+normalised to a 10% relative error; at that one point the observed
+variance ratio was 16% below the projection. The nominal budget is a
+floor, not a cap. The natural next study is BB144
 and other qLDPC codes with BP-family decoders, where the value
 concentrates.

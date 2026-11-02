@@ -9,8 +9,11 @@
 
 Given one ``run_lace.py`` report with many repeats and a set of
 reference reports for the same decoder and count, the script pools the
-plain conditional samples of every repeat of every report into a
-ground-truth rate, then checks how often each repeat's intervals cover it:
+plain conditional samples of every repeat of every *other* report into a
+ground-truth rate (the evaluated report is excluded so no repeat is
+scored against a reference that contains itself; the reference's own
+relative standard error is printed and should be small against the
+interval widths), then checks how often each repeat's intervals cover it:
 the plug-in interval (per-round unbiased variance), the heuristic interval
 (plug-in plus the exposure-aware never-failing charge, not a bound), the
 worst-case interval (plug-in plus a simultaneous allowance for the
@@ -31,6 +34,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 
 import numpy as np
 
@@ -84,7 +88,7 @@ def main() -> None:
     parser.add_argument("--reference",
                         required=True,
                         help="Glob of reports whose plain samples form the "
-                        "ground truth (the report itself is included).")
+                        "ground truth (the evaluated report is excluded).")
     parser.add_argument("--count", type=int, required=True)
     parser.add_argument("--seed", type=int, default=20261101)
     args = parser.parse_args()
@@ -93,7 +97,11 @@ def main() -> None:
     entry = per_count(report, args.count)
     if entry is None:
         raise SystemExit(f"count {args.count} not in {args.report}")
-    paths = sorted(set(glob.glob(args.reference)) | {args.report})
+    own = os.path.abspath(args.report)
+    paths = sorted(path for path in set(glob.glob(args.reference))
+                   if os.path.abspath(path) != own)
+    if not paths:
+        raise SystemExit("no reference reports other than the evaluated one")
     truth, truth_failures, truth_shots = pooled_truth(paths, args.count)
     truth_rel_se = 1.0 / np.sqrt(truth_failures)
 
@@ -116,7 +124,7 @@ def main() -> None:
     print(f"{len(repeats)} repeats, {decodes.mean():.0f} decodes each; "
           f"ground truth f = {truth:.4e} from {truth_failures} plain failures "
           f"in {truth_shots} shots ({100 * truth_rel_se:.1f}% rel. SE), "
-          f"{len(paths)} reports")
+          f"{len(paths)} reference reports, evaluated report excluded")
     rel_se_mean = est.std(ddof=1) / np.sqrt(est.size) / truth
     z_mean = (est.mean() / truth - 1) / np.hypot(rel_se_mean, truth_rel_se)
     print(
