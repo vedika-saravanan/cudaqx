@@ -566,10 +566,12 @@
           ],
           "plain_estimate_same_budget": 8.166666666666667e-05,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.8395493021537356,
-          "certified_variance": 3.7476225374425626e-10,
-          "certified_bound_group": 25,
-          "certified_bound_rate": 0.0005115089514066496
+          "heuristic_variance": 3.7476225374425626e-10,
+          "worst_case_variance": 9.621311123059425e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.8395493021537356,
+          "heuristic_group": 25,
+          "heuristic_rate": 0.0005115089514066496
         },
         {
           "estimate": 0.00010693891049134981,
@@ -872,10 +874,12 @@
           ],
           "plain_estimate_same_budget": 0.00011666666666666667,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.7840826125465357,
-          "certified_variance": 5.072206507653407e-10,
-          "certified_bound_group": 21,
-          "certified_bound_rate": 0.007692307692307693
+          "heuristic_variance": 5.072206507653407e-10,
+          "worst_case_variance": 6.003503563626068e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.7840826125465357,
+          "heuristic_group": 21,
+          "heuristic_rate": 0.007692307692307693
         },
         {
           "estimate": 0.00010338231008087125,
@@ -1178,10 +1182,12 @@
           ],
           "plain_estimate_same_budget": 8.166666666666667e-05,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.8395493021537356,
-          "certified_variance": 3.827226943930473e-10,
-          "certified_bound_group": 25,
-          "certified_bound_rate": 0.0005115089514066496
+          "heuristic_variance": 3.827226943930473e-10,
+          "worst_case_variance": 9.686626130154945e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.8395493021537356,
+          "heuristic_group": 25,
+          "heuristic_rate": 0.0005115089514066496
         }
       ],
       "stratified_mean": 9.965306435128656e-05,
@@ -1189,8 +1195,10 @@
       "stratified_sd_realised": 9.703686840193358e-06,
       "plain_mean": 9.333333333333334e-05,
       "plain_shots_mean": 613618.6666666666,
-      "stratified_sd_certified": 2.0481212181374866e-05,
-      "variance_gain_certified": 0.3871127724224828,
+      "stratified_sd_heuristic": 2.0481212181374866e-05,
+      "stratified_sd_worst_case": 9.133040679458037e-05,
+      "variance_gain_heuristic": 0.3871127724224828,
+      "variance_gain_worst_case": 0.01946785174243374,
       "plain_sd_analytic": 1.2743079928637868e-05,
       "plain_sd_realised": 2.02072594216369e-05,
       "variance_gain_analytic": 2.599773067581064,
@@ -1666,10 +1674,12 @@
           ],
           "plain_estimate_same_budget": 0.0004733333333333333,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.542344354514916,
-          "certified_variance": 7.061257363891403e-10,
-          "certified_bound_group": 21,
-          "certified_bound_rate": 0.0008703220191470844
+          "heuristic_variance": 7.061257363891403e-10,
+          "worst_case_variance": 4.158551333540867e-09,
+          "worst_case_rate_constant": 6.173786103901937,
+          "never_failing_mass": 0.542344354514916,
+          "heuristic_group": 21,
+          "heuristic_rate": 0.0008703220191470844
         },
         {
           "estimate": 0.0004599612100642977,
@@ -1942,10 +1952,12 @@
           ],
           "plain_estimate_same_budget": 0.00044833333333333335,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.542344354514916,
-          "certified_variance": 7.334376431487607e-10,
-          "certified_bound_group": 21,
-          "certified_bound_rate": 0.0008703220191470844
+          "heuristic_variance": 7.334376431487607e-10,
+          "worst_case_variance": 4.185932947123101e-09,
+          "worst_case_rate_constant": 6.173786103901937,
+          "never_failing_mass": 0.542344354514916,
+          "heuristic_group": 21,
+          "heuristic_rate": 0.0008703220191470844
         },
         {
           "estimate": 0.00046332213797495807,
@@ -2218,10 +2230,12 @@
           ],
           "plain_estimate_same_budget": 0.0004583333333333333,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.542344354514916,
-          "certified_variance": 7.34362134282281e-10,
-          "certified_bound_group": 21,
-          "certified_bound_rate": 0.0008403361344537816
+          "heuristic_variance": 7.34362134282281e-10,
+          "worst_case_variance": 3.4374448842553813e-09,
+          "worst_case_rate_constant": 6.173786103901937,
+          "never_failing_mass": 0.542344354514916,
+          "heuristic_group": 21,
+          "heuristic_rate": 0.0008403361344537816
         }
       ],
       "stratified_mean": 0.0004606285142798501,
@@ -2229,8 +2243,10 @@
       "stratified_sd_realised": 2.4296989690255878e-06,
       "plain_mean": 0.00045999999999999996,
       "plain_shots_mean": 612881.3333333334,
-      "stratified_sd_certified": 2.6918065743471023e-05,
-      "variance_gain_certified": 1.0367800479622291,
+      "stratified_sd_heuristic": 2.6918065743471023e-05,
+      "stratified_sd_worst_case": 6.260511465121882e-05,
+      "variance_gain_heuristic": 1.0367800479622291,
+      "variance_gain_worst_case": 0.19167024566007745,
       "plain_sd_analytic": 2.7408619698356777e-05,
       "plain_sd_realised": 1.2583057392117896e-05,
       "variance_gain_analytic": 1.8520625635712773,
@@ -2760,10 +2776,12 @@
           ],
           "plain_estimate_same_budget": 0.0014783333333333332,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.25144951218208167,
-          "certified_variance": 1.9293553277348285e-09,
-          "certified_bound_group": 15,
-          "certified_bound_rate": 0.0007363770250368188
+          "heuristic_variance": 1.9293553277348285e-09,
+          "worst_case_variance": 4.626186735945429e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.25144951218208167,
+          "heuristic_group": 15,
+          "heuristic_rate": 0.0007363770250368188
         },
         {
           "estimate": 0.0014382559597206986,
@@ -3066,10 +3084,12 @@
           ],
           "plain_estimate_same_budget": 0.00138,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.25144951218208167,
-          "certified_variance": 2.0146954380476e-09,
-          "certified_bound_group": 18,
-          "certified_bound_rate": 0.002109704641350211
+          "heuristic_variance": 2.0146954380476e-09,
+          "worst_case_variance": 5.2931343665411775e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.25144951218208167,
+          "heuristic_group": 18,
+          "heuristic_rate": 0.002109704641350211
         },
         {
           "estimate": 0.0014475602097216995,
@@ -3372,10 +3392,12 @@
           ],
           "plain_estimate_same_budget": 0.001365,
           "plain_shots": 600000,
-          "certified_empty_mass": 0.25144951218208167,
-          "certified_variance": 2.0453710108016068e-09,
-          "certified_bound_group": 18,
-          "certified_bound_rate": 0.002109704641350211
+          "heuristic_variance": 2.0453710108016068e-09,
+          "worst_case_variance": 4.679947595018157e-09,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.25144951218208167,
+          "heuristic_group": 18,
+          "heuristic_rate": 0.002109704641350211
         }
       ],
       "stratified_mean": 0.0014158902302414897,
@@ -3383,8 +3405,10 @@
       "stratified_sd_realised": 4.7026967253699756e-05,
       "plain_mean": 0.0014077777777777778,
       "plain_shots_mean": 610749.3333333334,
-      "stratified_sd_certified": 4.467852148859173e-05,
-      "variance_gain_certified": 1.1597213398845623,
+      "stratified_sd_heuristic": 4.467852148859173e-05,
+      "stratified_sd_worst_case": 6.972671659159513e-05,
+      "variance_gain_heuristic": 1.1597213398845623,
+      "variance_gain_worst_case": 0.4761598850195591,
       "plain_sd_analytic": 4.8114460139861e-05,
       "plain_sd_realised": 6.156147183762597e-05,
       "variance_gain_analytic": 1.4045749336654558,

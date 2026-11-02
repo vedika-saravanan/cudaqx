@@ -89,9 +89,9 @@ def load_gains(paths: str) -> dict[int, dict[str, float]]:
     (comma-separated; later reports override earlier ones per count).
 
     ``gain`` is the per-round plug-in gain (never-failing groups at rate
-    zero); ``gain_certified`` charges them by the exposure-aware bound of
-    ``allocation.certified_variance`` (equal to the plug-in when nothing
-    is unmeasured).  The pilot is the stored first round of the first repeat,
+    zero); ``gain_heuristic`` charges them by the exposure-aware heuristic
+    of ``allocation.never_failing_bounds`` (not a bound) and
+    ``gain_worst_case`` by its simultaneous worst-case allowance.  The pilot is the stored first round of the first repeat,
     so uniform and mass-proportional pilots are both accounted for.
     """
     gains: dict[int, dict[str, float]] = {}
@@ -102,14 +102,18 @@ def load_gains(paths: str) -> dict[int, dict[str, float]]:
             gain = pc.get("variance_gain_analytic")
             if gain is None or not math.isfinite(gain):
                 continue
-            certified = pc.get("variance_gain_certified")
-            if certified is None or not math.isfinite(certified):
-                certified = gain
+            heuristic = pc.get("variance_gain_heuristic")
+            if heuristic is None or not math.isfinite(heuristic):
+                heuristic = gain
+            worst = pc.get("variance_gain_worst_case")
+            if worst is None or not math.isfinite(worst):
+                worst = gain
             pilot = int(sum(pc["repeats"][0]["round_labels"][0]))
             budget = int(pc.get("plain_shots_mean") or params["budget"])
             gains[int(k)] = {
                 "gain": float(gain),
-                "gain_certified": float(certified),
+                "gain_heuristic": float(heuristic),
+                "gain_worst_case": float(worst),
                 "f": float(pc["stratified_mean"]),
                 "se": float(pc["stratified_sd_analytic"]),
                 "budget": budget,
@@ -224,7 +228,9 @@ def main() -> None:
         layer_plugin, implied = layer_cost(P, f, gains, counts, eps, ler,
                                            "gain")
         layer_bound, _ = layer_cost(P, f, gains, counts, eps, ler,
-                                    "gain_certified")
+                                    "gain_heuristic")
+        layer_worst, _ = layer_cost(P, f, gains, counts, eps, ler,
+                                    "gain_worst_case")
         layer_fixed, _ = layer_cost(P,
                                     f,
                                     gains,
@@ -257,12 +263,14 @@ def main() -> None:
             "direct_cost": direct_cost,
             "plain_stratified_cost": plain_cost,
             "layer_stratified_cost": layer_plugin,
-            "layer_stratified_cost_certified": layer_bound,
+            "layer_stratified_cost_heuristic": layer_bound,
+            "layer_stratified_cost_worst_case": layer_worst,
             "layer_stratified_cost_fixed_pilot": layer_fixed,
             "implied_decodes_by_count": implied,
             "counts_below_measured_budget": below_measured,
             "speedup_over_plain": plain_cost / layer_plugin,
-            "speedup_over_plain_certified": plain_cost / layer_bound,
+            "speedup_over_plain_heuristic": plain_cost / layer_bound,
+            "speedup_over_plain_worst_case": plain_cost / layer_worst,
             "speedup_over_plain_fixed_pilot": plain_cost / layer_fixed,
             "speedup_over_direct": direct_cost / layer_plugin,
             "onset_count": onset,
@@ -273,9 +281,11 @@ def main() -> None:
             (f" (exact reweighting {reweighted:.2e})" if reweighted else "") +
             f"  projected decodes for {eps:.0%}: direct "
             f"{direct_cost:.2e}, count-stratified {plain_cost:.2e}, layer-"
-            f"stratified {layer_plugin:.2e} (certified {layer_bound:.2e}, fixed "
+            f"stratified {layer_plugin:.2e} (heuristic {layer_bound:.2e}, worst "
+            f"case {layer_worst:.2e}, fixed "
             f"pilot {layer_fixed:.2e}); speedup x{plain_cost/layer_plugin:.2f}"
-            f" [certified x{plain_cost/layer_bound:.2f}; fixed pilot "
+            f" [heuristic x{plain_cost/layer_bound:.2f}; worst case "
+            f"x{plain_cost/layer_worst:.2f}; fixed pilot "
             f"x{plain_cost/layer_fixed:.2f}]; onset k={onset} share of plain"
             f" variance {share[onset]:.2f}; implied k={onset} decodes "
             f"{implied[onset]:.1e}" +
@@ -301,8 +311,9 @@ def main() -> None:
 
 
 def plot(path: str, reports: list[dict]) -> None:
-    """Plug-in speedup (band: fixed pilot to constant pilot share),
-    certified speedup, and decoder cost versus LER."""
+    """Projected plug-in speedup (band: fixed pilot to constant pilot
+    share), heuristic and worst-case speedups, and decoder cost versus
+    LER."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -320,10 +331,14 @@ def plot(path: str, reports: list[dict]) -> None:
                          [r["speedup_over_plain"] for r in rows],
                          color=line.get_color(),
                          alpha=0.2)
-        ax2.plot(ler, [r["speedup_over_plain_certified"] for r in rows],
+        ax2.plot(ler, [r["speedup_over_plain_heuristic"] for r in rows],
                  "o-",
                  color=line.get_color(),
-                 label=label)
+                 label=f"{label}: heuristic")
+        ax2.plot(ler, [r["speedup_over_plain_worst_case"] for r in rows],
+                 "v:",
+                 color=line.get_color(),
+                 label=f"{label}: worst-case bound")
         ax3.plot(ler, [r["direct_cost"] for r in rows], ":", color="gray")
         ax3.plot(ler, [r["plain_stratified_cost"] for r in rows],
                  "s--",
@@ -340,13 +355,14 @@ def plot(path: str, reports: list[dict]) -> None:
     ax1.set_ylabel("variance speedup over count stratification")
     ax1.axhline(1.0, color="gray", lw=0.8)
     ax1.legend(fontsize=8)
-    ax1.set_title("Plug-in speedup\n(band: measured pilot as fixed cost, "
-                  "to constant pilot share)")
-    ax2.set_ylabel("certified speedup over count stratification")
+    ax1.set_title(
+        "Projected plug-in speedup\n(band: measured pilot as fixed cost, "
+        "to constant pilot share)")
+    ax2.set_ylabel("speedup with never-failing groups charged")
     ax2.axhline(1.0, color="gray", lw=0.8)
-    ax2.legend(fontsize=8)
-    ax2.set_title("Certified speedup\n(never-failing groups at their "
-                  "family bound)")
+    ax2.legend(fontsize=7)
+    ax2.set_title("Never-failing groups charged\n(heuristic, not a bound; "
+                  "simultaneous worst-case allowance)")
     ax3.set_yscale("log")
     ax3.set_ylabel(f"decoder calls for {int(reports[0]['relative_error']*100)}%"
                    " relative error")

@@ -111,7 +111,7 @@ def round_labels(budget: int,
     the latter bounds the variance a stratum can contribute at
     ``1 / floor_share`` times its plain-sampling contribution however badly
     its pilot underestimated it.  ``min_labels`` adds per-stratum minima
-    (see :func:`certification_floor`).
+    (see :func:`allowance_floor`).
     """
     w = np.asarray(weights, dtype=np.float64)
     sigmas = stratum_sigmas(failures, trials, pseudo, w, families)
@@ -148,7 +148,7 @@ def fixed_weight_estimate(
     so a pooled rate is negatively correlated with ``sum_r 1/L_r`` and
     underestimates the variance (by 20-40% in the BB72 onset regime).
     Strata with no failure in any round contribute zero; see
-    :func:`certified_variance` for the conservative companion.
+    :func:`never_failing_bounds` for the conservative companions.
     """
     L, F, w = _rounds(weights, round_labels, round_failures)
     rounds = L.shape[0]
@@ -169,7 +169,7 @@ def zero_group_break_even(weights: np.ndarray, round_labels: list[np.ndarray],
     The plug-in gives those strata zero variance; if their common true
     rate were ``b`` the variance would grow by ``b * sum_g w_g^2 sum_r
     1/(R^2 L_{g,r})`` to first order.  The gain over plain sampling is
-    therefore certified only while their rate is below this break-even
+    therefore real only while their rate is below this break-even
     value, which the labels bound through the family rule of three.
     Returns ``inf`` when no stratum is failure-free.
     """
@@ -203,36 +203,52 @@ def round_inverse_labels(round_labels: list[np.ndarray]) -> np.ndarray:
     return (1.0 / L).sum(axis=0) / L.shape[0]**2
 
 
-def certified_variance(
+# Simultaneous level of the worst-case bound over all groups of a count
+# stratum (one-sided).
+NEVER_FAILING_LEVEL = 0.05
+
+
+def never_failing_bounds(
         weights: np.ndarray,
         round_labels: list[np.ndarray],
         round_failures: list[np.ndarray],
-        bound_events: float = ZERO_FAILURE_BOUND_EVENTS) -> dict[str, object]:
+        level: float = NEVER_FAILING_LEVEL,
+        heuristic_events: float = ZERO_FAILURE_BOUND_EVENTS
+) -> dict[str, object]:
     """Variance of :func:`fixed_weight_estimate` with the never-failing
-    strata charged for what the data cannot exclude (exposure-aware).
+    strata charged for what the data cannot exclude, two ways.
 
     Strata that failed keep the per-round plug-in.  For the set ``E`` of
-    strata with no failure in any round, with ``n_g`` labels each and
-    unknown true rates ``f_g``, the probability of the observation is
-    ``prod_g (1 - f_g)^{n_g} <= exp(-sum_g n_g f_g)``, so the event
-    ``sum_{g in E} n_g f_g > bound_events`` has probability at most
-    ``exp(-bound_events)`` (5% for 3).  Because the inequality holds path
-    by path for whatever labels were drawn, it also holds when the labels
-    were chosen adaptively from earlier rounds.  On the complementary
-    event the variance those strata add,
-    ``sum_g w_g^2 f_g (1 - f_g) I_g <= sum_g w_g^2 I_g f_g`` with
-    ``I_g = sum_r 1 / (R^2 L_{g,r})``, is a linear function of the rates
-    under one linear constraint, so its maximum puts the whole allowance
-    on the stratum with the largest ``w_g^2 I_g / n_g``:
+    strata with no failure in any round, ``n_g`` labels each and unknown
+    true rates ``f_g``, the plug-in reads zero and the estimator's true
+    variance is larger by ``sum_{g in E} w_g^2 f_g (1 - f_g) I_g`` with
+    ``I_g = sum_r 1 / (R^2 L_{g,r})``.
 
-        certified = plug-in + max_{g in E} w_g^2 I_g min(1, bound_events / n_g).
+    ``worst_case`` adds a valid simultaneous allowance for the strata in
+    ``E`` to the plug-in of the strata that failed; the plug-in part is an
+    estimate, not an upper bound, so the sum is not a rigorous confidence
+    interval for the whole estimate (its coverage is measured empirically
+    in the repeats).  For one pre-specified stratum ``g``
+    the process ``M_r = exp(f_g sum_{s <= r} L_{g,s}) 1{no failure of g
+    through round s}`` is a supermartingale whatever the (adaptive) labels,
+    since ``E[exp(f L) 1{no failure in L Bernoulli(f) trials}] = (exp(f)
+    (1 - f))^L <= 1``; by Ville's inequality the event "no failure of
+    ``g`` and ``n_g f_g > c``" has probability at most ``exp(-c)``.  With
+    ``c = ln(G / level)`` and a union bound over the ``G`` strata of the
+    count (fixed before sampling), every stratum satisfies ``f_g <= c /
+    n_g`` simultaneously with probability at least ``1 - level``, so
 
-    A pooled family rate (``bound_events`` over the family's total
-    labels applied to every member) is *not* a bound: a stratum that
-    received fewer labels than its share of the mass can hide a higher
-    rate.  The bound is one-sided at level ``1 - exp(-bound_events)`` per
-    count stratum; combining several count strata needs a union bound
-    (``bound_events = ln(K / alpha)`` for ``K`` strata).
+        worst_case = plug-in + sum_{g in E} w_g^2 I_g min(1, c / n_g).
+
+    ``heuristic`` is the exposure-aware single-group charge ``max_{g in E}
+    w_g^2 I_g min(1, heuristic_events / n_g)``.  It is *not* a bound: the
+    set ``E`` is selected by the data, so the pooled constraint ``sum_{g
+    in E} n_g f_g <= heuristic_events`` it rests on is not justified (with
+    100 equal strata at rate 0.001 and 1000 labels each, about 37 are
+    empty and their true contribution exceeds the charge every time).  It
+    is kept because its empirical coverage on BB72 is conservative (78%
+    at nominal 68% over 100 repeats) and it is what the allowance rule of
+    :func:`allowance_floor` targets; it must be labelled a heuristic.
     """
     L, F, w = _rounds(weights, round_labels, round_failures)
     inverse = round_inverse_labels(round_labels)
@@ -241,39 +257,47 @@ def certified_variance(
     failed = F.sum(axis=0) > 0
     empty = ~failed
     plug_in = float(np.sum(w[failed]**2 * per_round[failed]))
-    labels = L.sum(axis=0)
+    labels = np.maximum(L.sum(axis=0), 1.0)
+    constant = math.log(w.size / level)
     result = {
         "plug_in": plug_in,
-        "certified": plug_in,
+        "heuristic": plug_in,
+        "worst_case": plug_in,
+        "worst_case_rate_constant": constant,
         "empty_mass": float(w[empty].sum()),
-        "bound_group": None,
-        "bound_rate": None,
+        "heuristic_group": None,
+        "heuristic_rate": None,
     }
     if np.any(empty):
-        rates = np.minimum(1.0, bound_events / np.maximum(labels, 1.0))
-        terms = np.where(empty, w**2 * inverse * rates, 0.0)
+        heuristic_rates = np.minimum(1.0, heuristic_events / labels)
+        terms = np.where(empty, w**2 * inverse * heuristic_rates, 0.0)
         g = int(np.argmax(terms))
-        result["certified"] = plug_in + float(terms[g])
-        result["bound_group"] = g
-        result["bound_rate"] = float(rates[g])
+        result["heuristic"] = plug_in + float(terms[g])
+        result["heuristic_group"] = g
+        result["heuristic_rate"] = float(heuristic_rates[g])
+        worst_rates = np.minimum(1.0, constant / labels)
+        result["worst_case"] = plug_in + float(
+            np.sum((w**2 * inverse * worst_rates)[empty]))
     return result
 
 
-def certification_floor(weights: np.ndarray, empty: np.ndarray,
-                        rate_estimate: float, plain_decodes: int,
-                        epsilon: float, rounds: int, round_index: int,
-                        current_labels: np.ndarray) -> np.ndarray:
+def allowance_floor(weights: np.ndarray, empty: np.ndarray,
+                    rate_estimate: float, plain_decodes: int, epsilon: float,
+                    rounds: int, round_index: int,
+                    current_labels: np.ndarray) -> np.ndarray:
     """Per-stratum minimum labels for round ``round_index`` (1-based) that
-    certify the never-failing strata inside the estimate.
+    keep the heuristic charge of the never-failing strata inside the
+    estimate below an allowance.
 
-    With labels spread evenly over the rounds the bound term of an empty
-    stratum in :func:`certified_variance` is ``bound_events w_g^2 / n_g^2``.
+    With labels spread evenly over the rounds the heuristic term of an
+    empty stratum in :func:`never_failing_bounds` is ``bound_events w_g^2 /
+    n_g^2``.
     Requiring the largest of them to be at most ``epsilon`` times the
     plain-sampling variance ``f / N`` at the planned decode count gives
     every empty stratum the same target ``n_g = w_g sqrt(bound_events N /
     (epsilon f))``, reached linearly over the rounds.  Because these
     labels sit in the rounds they also shrink the variance, so the bound
-    falls as ``1 / n_g^2``; the total certification labels scale as
+    falls as ``1 / n_g^2``; the total allowance labels scale as
     ``sqrt(N)`` and their share of the budget falls as ``1 / sqrt(N)``.
     """
     w = np.asarray(weights, dtype=np.float64)
@@ -289,42 +313,43 @@ def certification_floor(weights: np.ndarray, empty: np.ndarray,
     return out
 
 
-# Search range for the certification allowance (log-spaced points per
+# Search range for the allowance (log-spaced points per
 # decade), widened upwards when the budget cannot afford the range, and the
 # smallest share of the budget the failing strata must keep whatever the
 # allowance.
-CERTIFY_FRACTION_MIN = 1e-3
-CERTIFY_FRACTION_MAX = 10.0
-CERTIFY_FRACTION_POINTS_PER_DECADE = 40
+ALLOWANCE_MIN = 1e-3
+ALLOWANCE_MAX = 10.0
+ALLOWANCE_POINTS_PER_DECADE = 40
 MIN_ESTIMATE_SHARE = 0.25
 
 
-def optimal_certify_fraction(weights: np.ndarray, empty: np.ndarray,
-                             sigmas: np.ndarray, rate_estimate: float,
-                             plain_decodes: int,
-                             labels_so_far: float) -> float | None:
-    """Allowance ``epsilon`` for :func:`certification_floor` that minimises
-    the projected certified variance from the data so far.
+def optimal_allowance(weights: np.ndarray, empty: np.ndarray,
+                      sigmas: np.ndarray, rate_estimate: float,
+                      plain_decodes: int, labels_so_far: float) -> float | None:
+    """Allowance ``epsilon`` for :func:`allowance_floor` that minimises the
+    projected heuristic variance from the data so far.
 
-    Certifying the never-failing strata to a bound of ``epsilon f / N``
+    Pushing the never-failing strata to a heuristic charge of ``epsilon f /
+    N``
     costs ``N_cert(epsilon) = W_E sqrt(bound_events N / (epsilon f))``
     labels (the floor rule's total, ``W_E`` the empty mass), which the
     failing strata lose.  With Neyman labels on the rest the plug-in
     variance is about ``(sum_g w_g sigma_g)^2 / (N - N_cert)``, so the
-    projected certified variance is
+    projected heuristic variance is
 
         A / (N - N_cert(epsilon)) + epsilon f / N,
 
     and the search takes the log-grid point that minimises it while leaving
     the failing strata at least ``MIN_ESTIMATE_SHARE`` of the budget.  When
-    the budget cannot afford any allowance up to ``CERTIFY_FRACTION_MAX``
+    the budget cannot afford any allowance up to ``ALLOWANCE_MAX``
     the grid is extended upwards to the loosest affordable one, so a small
-    budget still certifies as far as it can instead of not at all.  With no
+    budget still covers as much as it can instead of nothing.  With no
     failure yet the rate is read as one failure in the labels so far, the
     same floor :func:`shrunk_rates` uses.  Returns ``None`` only when no
     stratum is empty.  The choice only steers the allocation; the estimator
     stays unbiased for any value.  Measured against a fixed allowance this
-    rule realises more plug-in gain and certifies less at equal decodes
+    rule realises more plug-in gain and leaves a larger heuristic charge at
+    equal decodes
     (it does not credit the failures its labels would discover), so it is
     not the default.
     """
@@ -339,10 +364,9 @@ def optimal_certify_fraction(weights: np.ndarray, empty: np.ndarray,
     # Smallest allowance that leaves the failing strata their share.
     affordable = (labels_per_sqrt /
                   ((1.0 - MIN_ESTIMATE_SHARE) * plain_decodes))**2
-    low = max(CERTIFY_FRACTION_MIN, affordable)
-    high = max(CERTIFY_FRACTION_MAX, 100.0 * low)
-    points = int(
-        CERTIFY_FRACTION_POINTS_PER_DECADE * math.log10(high / low)) + 1
+    low = max(ALLOWANCE_MIN, affordable)
+    high = max(ALLOWANCE_MAX, 100.0 * low)
+    points = int(ALLOWANCE_POINTS_PER_DECADE * math.log10(high / low)) + 1
     grid = np.logspace(math.log10(low), math.log10(high), points)
     remaining = plain_decodes - labels_per_sqrt / np.sqrt(grid)
     value = neyman / remaining + grid * rate / plain_decodes

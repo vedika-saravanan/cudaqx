@@ -14,13 +14,15 @@ spread sets; ``position_core`` adds the largest single-layer count).
 Each group receives a mass-proportional pilot, the decoder labels it, and
 the remaining budget is Neyman-allocated over several rounds, each round
 from all counts so far with family shrinkage, the rounds combined with
-fixed weights so the estimate stays unbiased.  Never-failing groups are
-certified inside the rounds: they receive enough labels that their
-rule-of-three bound adds at most an allowance to the variance, the
-allowance fixed (``--certify-fraction 0.15``, the default) or chosen each
-round from the data within the budget (``auto``).  The resulting ``f(k)``
-is reported with its plug-in and certified standard errors and compared
-with plain conditional sampling at the same decoder budget.
+fixed weights so the estimate stays unbiased.  Never-failing groups
+receive enough labels inside the rounds that their heuristic
+rule-of-three charge adds at most an allowance to the variance, the
+allowance fixed (``--allowance 0.15``, the default) or chosen each round
+from the data (``auto``).  The resulting ``f(k)`` is reported with its
+plug-in standard error (calibrated in repeats), the heuristic charge for
+never-failing groups (not a bound) and the simultaneous worst-case
+bound, and compared with plain conditional sampling at the same decoder
+budget.
 
 Usage::
 
@@ -80,16 +82,15 @@ def main() -> None:
         help="Mass-proportional pilot of this fraction of the budget "
         "(floor MIN_ROUND_LABELS per group).")
     parser.add_argument(
-        "--certify-fraction",
+        "--allowance",
         default="0.15",
-        help="Certify inside the rounds: give never-failing families enough "
-        "labels that their rule-of-three bound term is at most this "
-        "fraction of the plain-sampling variance at the planned budget "
-        "(default 0.15, the validated setting; the floors may push the "
-        "realised decodes above --budget); 'auto' picks the fraction each "
-        "round that minimises the projected certified variance within the "
-        "budget (allocation.optimal_certify_fraction), which keeps the "
-        "budget but certifies less; 'none' disables.")
+        help="Give never-failing groups enough labels inside the rounds that "
+        "their heuristic rule-of-three charge is at most this fraction of "
+        "the plain-sampling variance at the planned budget (default 0.15; "
+        "the floors are added on top of the allocation, so the realised "
+        "decodes exceed --budget); 'auto' picks the fraction each round "
+        "that minimises the projected heuristic variance "
+        "(allocation.optimal_allowance); 'none' disables.")
     parser.add_argument("--rounds",
                         type=int,
                         default=3,
@@ -97,9 +98,9 @@ def main() -> None:
     parser.add_argument("--budget", type=int, default=600000)
     parser.add_argument("--repeats", type=int, default=3)
     args = parser.parse_args()
-    certify_auto = args.certify_fraction == "auto"
-    certify_fraction = (None if args.certify_fraction in (None, "none") or
-                        certify_auto else float(args.certify_fraction))
+    allowance_auto = args.allowance == "auto"
+    allowance = (None if args.allowance in (None, "none") or allowance_auto else
+                 float(args.allowance))
 
     experiment = common.build_experiment(args)
     model, oracle, rng = experiment.model, experiment.oracle, experiment.rng
@@ -187,7 +188,7 @@ def main() -> None:
                 failures_so_far = np.sum(failures, axis=0)
                 labels_so_far = np.sum(labels, axis=0)
                 floors = None
-                if certify_auto or certify_fraction is not None:
+                if allowance_auto or allowance is not None:
                     # Rate estimate for the floor from the pilot and the
                     # rounds so far (allocation may use anything).
                     rate_estimate = float(
@@ -197,9 +198,9 @@ def main() -> None:
                                       labels_so_far,
                                       out=np.zeros(len(names)),
                                       where=labels_so_far > 0)))
-                    epsilon = certify_fraction
-                    if certify_auto:
-                        epsilon = allocation.optimal_certify_fraction(
+                    epsilon = allowance
+                    if allowance_auto:
+                        epsilon = allocation.optimal_allowance(
                             weights, failures_so_far == 0,
                             allocation.stratum_sigmas(failures_so_far,
                                                       labels_so_far, pseudo,
@@ -208,7 +209,7 @@ def main() -> None:
                             float(labels_so_far.sum()))
                         chosen_fractions.append(epsilon)
                     if epsilon is not None:
-                        floors = allocation.certification_floor(
+                        floors = allocation.allowance_floor(
                             weights, failures_so_far == 0, rate_estimate,
                             args.budget, epsilon, args.rounds, round_index,
                             np.sum(labels[1:], axis=0)
@@ -230,8 +231,8 @@ def main() -> None:
                     ]))
             estimate, variance = allocation.fixed_weight_estimate(
                 weights, labels[1:], failures[1:])
-            certified = allocation.certified_variance(weights, labels[1:],
-                                                      failures[1:])
+            bounds = allocation.never_failing_bounds(weights, labels[1:],
+                                                     failures[1:])
             total_f = np.sum(failures, axis=0)
             total_n = np.sum(labels, axis=0)
             # Plain conditional sampling at the decode count the stratified
@@ -242,11 +243,13 @@ def main() -> None:
             repeats.append({
                 "estimate": estimate,
                 "standard_error": math.sqrt(variance),
-                "certified_variance": certified["certified"],
-                "certified_empty_mass": certified["empty_mass"],
-                "certified_bound_group": certified["bound_group"],
-                "certified_bound_rate": certified["bound_rate"],
-                "certify_fractions": chosen_fractions,
+                "heuristic_variance": bounds["heuristic"],
+                "worst_case_variance": bounds["worst_case"],
+                "worst_case_rate_constant": bounds["worst_case_rate_constant"],
+                "never_failing_mass": bounds["empty_mass"],
+                "heuristic_group": bounds["heuristic_group"],
+                "heuristic_rate": bounds["heuristic_rate"],
+                "allowances": chosen_fractions,
                 "plain_shots": plain_shots,
                 "rest_mass_pooled": rest_mass,
                 "decoder_calls": oracle.decoder_calls - calls_before,
@@ -257,18 +260,19 @@ def main() -> None:
                 "plain_estimate_same_budget": plain,
             })
             print(f"  repeat {rep}: stratified f({k}) = {estimate:.3e} +- "
-                  f"{math.sqrt(variance):.1e} (certified "
-                  f"{math.sqrt(certified['certified']):.1e}); plain "
+                  f"{math.sqrt(variance):.1e} (heuristic "
+                  f"{math.sqrt(bounds['heuristic']):.1e}, worst case "
+                  f"{math.sqrt(bounds['worst_case']):.1e}); plain "
                   f"{plain:.3e} +- "
                   f"{math.sqrt(plain*(1-plain)/plain_shots):.1e} at "
                   f"{plain_shots} decodes")
         report["per_count"][k] = summarise_count(repeats, names, weights,
                                                  rest_mass, args)
         pc = report["per_count"][k]
-        certified = pc["variance_gain_certified"] or float("nan")
         print(f"k={k}: f = {pc['stratified_mean']:.3e}; variance gain over "
               f"plain at equal decodes x{pc['variance_gain_analytic']:.2f} "
-              f"(certified x{certified:.2f}; "
+              f"(heuristic x{pc['variance_gain_heuristic']:.2f}, worst case "
+              f"x{pc['variance_gain_worst_case']:.2f}; "
               f"plug-in Neyman at "
               f"pooled rates x{pc['variance_gain_neyman_plugin']:.2f}, "
               f"x{pc['variance_gain_neyman_plugin_with_pilot']:.2f} with "
@@ -305,15 +309,17 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
     shots = float(np.mean([sum(r["group_labels"]) for r in repeats]))
     plain_sd = math.sqrt(pooled * (1 - pooled) / shots)
     strat_sd = float(np.mean([r["standard_error"] for r in repeats]))
-    certified_sd = float(
-        np.mean([math.sqrt(r["certified_variance"]) for r in repeats]))
+    heuristic_sd = float(
+        np.mean([math.sqrt(r["heuristic_variance"]) for r in repeats]))
+    worst_sd = float(
+        np.mean([math.sqrt(r["worst_case_variance"]) for r in repeats]))
 
     def gain(sd: float) -> float:
         return (plain_sd / sd)**2 if sd > 0 else float("nan")
 
     # Rate of the never-failing groups at which the gain would vanish
-    # (common-rate, first order) and the rate the certified bound actually
-    # charges its binding group, averaged over repeats.
+    # (common-rate, first order) and the rate the heuristic charge puts on
+    # its binding group, averaged over repeats.
     break_even = []
     for r in repeats:
         labels = [np.array(n, dtype=float) for n in r["round_labels"][1:]]
@@ -322,9 +328,9 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
             allocation.zero_group_break_even(weights, labels, fails,
                                              plain_sd**2))
     bound_rates = [
-        r["certified_bound_rate"]
+        r["heuristic_rate"]
         for r in repeats
-        if r.get("certified_bound_rate") is not None
+        if r.get("heuristic_rate") is not None
     ]
     bound_rate = float(np.mean(bound_rates)) if bound_rates else None
     never = pooled_f == 0
@@ -348,12 +354,17 @@ def summarise_count(repeats: list[dict], names: list, weights: np.ndarray,
             float(plains.mean()),
         "plain_shots_mean":
             shots,
-        "stratified_sd_certified":
-            certified_sd,
-        # Gain with the never-failing groups charged by the exposure-aware
-        # bound (allocation.certified_variance).
-        "variance_gain_certified":
-            gain(certified_sd),
+        "stratified_sd_heuristic":
+            heuristic_sd,
+        "stratified_sd_worst_case":
+            worst_sd,
+        # Gains with the never-failing groups charged by the heuristic (not
+        # a bound) and by the simultaneous worst-case allowance
+        # (allocation.never_failing_bounds).
+        "variance_gain_heuristic":
+            gain(heuristic_sd),
+        "variance_gain_worst_case":
+            gain(worst_sd),
         "plain_sd_analytic":
             plain_sd,
         "plain_sd_realised":

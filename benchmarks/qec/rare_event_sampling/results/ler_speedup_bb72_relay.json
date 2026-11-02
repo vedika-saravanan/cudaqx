@@ -25,7 +25,8 @@
   "gains": {
     "3": {
       "gain": 3.2787183041241996,
-      "gain_certified": 2.221823795523267,
+      "gain_heuristic": 2.221823795523267,
+      "gain_worst_case": 0.3287320911052066,
       "f": 9.121706035715248e-05,
       "se": 5.118643744169361e-06,
       "budget": 1061750,
@@ -34,7 +35,8 @@
     },
     "4": {
       "gain": 1.6556104454939005,
-      "gain_certified": 1.1534494702885398,
+      "gain_heuristic": 1.1534494702885398,
+      "gain_worst_case": 0.3176053024371855,
       "f": 0.0004565525589265163,
       "se": 2.051581756563065e-05,
       "budget": 654872,
@@ -43,7 +45,8 @@
     },
     "5": {
       "gain": 1.4045749336654558,
-      "gain_certified": 1.1597213398845623,
+      "gain_heuristic": 1.1597213398845623,
+      "gain_worst_case": 0.4761598850195591,
       "f": 0.0014158902302414897,
       "se": 4.05978617592821e-05,
       "budget": 610749,
@@ -62,7 +65,8 @@
       "direct_cost": 30882.956798824656,
       "plain_stratified_cost": 17484.492255374116,
       "layer_stratified_cost": 15909.936088519868,
-      "layer_stratified_cost_certified": 16745.47711529552,
+      "layer_stratified_cost_heuristic": 16745.47711529552,
+      "layer_stratified_cost_worst_case": 22348.475929982116,
       "layer_stratified_cost_fixed_pilot": 271550.18730857776,
       "implied_decodes_by_count": {
         "3": 182.51295933963806,
@@ -78,7 +82,8 @@
         "5": 2029.8271926747693
       },
       "speedup_over_plain": 1.0989668442471243,
-      "speedup_over_plain_certified": 1.0441322235843356,
+      "speedup_over_plain_heuristic": 1.0441322235843356,
+      "speedup_over_plain_worst_case": 0.7823572538079606,
       "speedup_over_plain_fixed_pilot": 0.06438770095748637,
       "speedup_over_direct": 1.9411113047216368,
       "onset_count": 3,
@@ -101,7 +106,8 @@
       "direct_cost": 149806.00320420988,
       "plain_stratified_cost": 50338.528322186445,
       "layer_stratified_cost": 36049.96947637495,
-      "layer_stratified_cost_certified": 42606.733507121746,
+      "layer_stratified_cost_heuristic": 42606.733507121746,
+      "layer_stratified_cost_worst_case": 98280.13283971515,
       "layer_stratified_cost_fixed_pilot": 294502.21528117405,
       "implied_decodes_by_count": {
         "3": 3282.211098666961,
@@ -117,7 +123,8 @@
         "5": 9114.351747598841
       },
       "speedup_over_plain": 1.3963542564210876,
-      "speedup_over_plain_certified": 1.181468847260312,
+      "speedup_over_plain_heuristic": 1.181468847260312,
+      "speedup_over_plain_worst_case": 0.5121943455681266,
       "speedup_over_plain_fixed_pilot": 0.17092750312294278,
       "speedup_over_direct": 4.155509848694435,
       "onset_count": 3,
@@ -140,7 +147,8 @@
       "direct_cost": 1426448.5636973507,
       "plain_stratified_cost": 175239.96551305678,
       "layer_stratified_cost": 91203.56102322538,
-      "layer_stratified_cost_certified": 121957.8090165734,
+      "layer_stratified_cost_heuristic": 121957.8090165734,
+      "layer_stratified_cost_worst_case": 465560.767143663,
       "layer_stratified_cost_fixed_pilot": 356384.61935412546,
       "implied_decodes_by_count": {
         "3": 27636.45649828705,
@@ -156,7 +164,8 @@
         "5": 19173.754319242347
       },
       "speedup_over_plain": 1.9214158257310936,
-      "speedup_over_plain_certified": 1.4368900763807804,
+      "speedup_over_plain_heuristic": 1.4368900763807804,
+      "speedup_over_plain_worst_case": 0.3764062134964674,
       "speedup_over_plain_fixed_pilot": 0.491715848542071,
       "speedup_over_direct": 15.640272678981244,
       "onset_count": 3,
@@ -179,7 +188,8 @@
       "direct_cost": 27548756.190293495,
       "plain_stratified_cost": 505971.5309850119,
       "layer_stratified_cost": 196958.97844204554,
-      "layer_stratified_cost_certified": 283104.1831794884,
+      "layer_stratified_cost_heuristic": 283104.1831794884,
+      "layer_stratified_cost_worst_case": 1513394.7944411084,
       "layer_stratified_cost_fixed_pilot": 468856.77019843564,
       "implied_decodes_by_count": {
         "3": 122990.36012533888,
@@ -195,7 +205,8 @@
         "5": 13647.424722763328
       },
       "speedup_over_plain": 2.568918335113584,
-      "speedup_over_plain_certified": 1.7872273214141288,
+      "speedup_over_plain_heuristic": 1.7872273214141288,
+      "speedup_over_plain_worst_case": 0.3343288432360873,
       "speedup_over_plain_fixed_pilot": 1.0791601255344314,
       "speedup_over_direct": 139.8705273971535,
       "onset_count": 3,
@@ -218,7 +229,8 @@
       "direct_cost": 234705947.79838064,
       "plain_stratified_cost": 729867.3998630326,
       "layer_stratified_cost": 253030.63042800888,
-      "layer_stratified_cost_certified": 369681.5976574281,
+      "layer_stratified_cost_heuristic": 369681.5976574281,
+      "layer_stratified_cost_worst_case": 2217185.3675577054,
       "layer_stratified_cost_fixed_pilot": 526244.1222757366,
       "implied_decodes_by_count": {
         "3": 200155.15792400963,
@@ -234,7 +246,8 @@
         "5": 5551.767921834619
       },
       "speedup_over_plain": 2.8845021593964337,
-      "speedup_over_plain_certified": 1.9743135836027654,
+      "speedup_over_plain_heuristic": 1.9743135836027654,
+      "speedup_over_plain_worst_case": 0.32918645889630915,
       "speedup_over_plain_fixed_pilot": 1.3869369157164728,
       "speedup_over_direct": 927.5791922952906,
       "onset_count": 3,

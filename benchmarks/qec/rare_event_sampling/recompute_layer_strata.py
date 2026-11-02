@@ -52,15 +52,21 @@ def recompute(report: dict) -> dict:
             rep["estimate"] = estimate
             rep["standard_error"] = math.sqrt(variance)
             rep.setdefault("plain_shots", int(args.budget))
-            certified = allocation.certified_variance(weights, labels[1:],
-                                                      failures[1:])
-            rep["certified_variance"] = certified["certified"]
-            rep["certified_empty_mass"] = certified["empty_mass"]
-            rep["certified_bound_group"] = certified["bound_group"]
-            rep["certified_bound_rate"] = certified["bound_rate"]
+            bounds = allocation.never_failing_bounds(weights, labels[1:],
+                                                     failures[1:])
+            rep["heuristic_variance"] = bounds["heuristic"]
+            rep["worst_case_variance"] = bounds["worst_case"]
+            rep["worst_case_rate_constant"] = bounds["worst_case_rate_constant"]
+            rep["never_failing_mass"] = bounds["empty_mass"]
+            rep["heuristic_group"] = bounds["heuristic_group"]
+            rep["heuristic_rate"] = bounds["heuristic_rate"]
+            if "certify_fractions" in rep:
+                rep["allowances"] = rep.pop("certify_fractions")
             for stale in ("standard_error_bound", "certified_variance_mixture",
                           "certified_variance_worst", "certified_bound_rates",
-                          "certification_labels", "certification_failures"):
+                          "certification_labels", "certification_failures",
+                          "certified_variance", "certified_empty_mass",
+                          "certified_bound_group", "certified_bound_rate"):
                 rep.pop(stale, None)
         report["per_count"][k] = summarise_count(pc["repeats"], names, weights,
                                                  pc["rest_mass"], args)
@@ -81,10 +87,12 @@ def main() -> None:
         common.write_json(path, report)
         for k, pc in report["per_count"].items():
             print(f"{path} k={k}: f={pc['stratified_mean']:.3e} +- "
-                  f"{pc['stratified_sd_analytic']:.1e} (certified "
-                  f"{pc['stratified_sd_certified']:.1e}); gain "
-                  f"x{pc['variance_gain_analytic']:.2f} [certified "
-                  f"x{pc['variance_gain_certified']:.2f}]; plug-in Neyman "
+                  f"{pc['stratified_sd_analytic']:.1e} (heuristic "
+                  f"{pc['stratified_sd_heuristic']:.1e}, worst case "
+                  f"{pc['stratified_sd_worst_case']:.1e}); gain "
+                  f"x{pc['variance_gain_analytic']:.2f} [heuristic "
+                  f"x{pc['variance_gain_heuristic']:.2f}, worst case "
+                  f"x{pc['variance_gain_worst_case']:.2f}]; plug-in Neyman "
                   f"x{pc['variance_gain_neyman_plugin']:.2f} "
                   f"(x{pc['variance_gain_neyman_plugin_with_pilot']:.2f} "
                   f"with pilot); never-failing mass "

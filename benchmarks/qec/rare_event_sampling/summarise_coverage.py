@@ -11,12 +11,14 @@ Given one ``run_lace.py`` report with many repeats and a set of
 reference reports for the same decoder and count, the script pools the
 plain conditional samples of every repeat of every report into a
 ground-truth rate, then checks how often each repeat's intervals cover it:
-the plug-in interval (per-round unbiased variance), the certified interval
-(plug-in plus the exposure-aware never-failing bound) and, as a control, the plain
-estimator's own binomial interval.  It also reports the realised spread of
+the plug-in interval (per-round unbiased variance), the heuristic interval
+(plug-in plus the exposure-aware never-failing charge, not a bound), the
+worst-case interval (plug-in plus a simultaneous allowance for the
+never-failing groups) and, as a control, the
+plain estimator's own binomial interval.  It also reports the realised spread of
 the stratified estimates against the mean reported standard error (their
 ratio should be 1 if the plug-in is right) and bootstrap intervals on the
-plug-in and certified variance gains across repeats.
+plug-in, heuristic and worst-case variance gains across repeats.
 
 Usage::
 
@@ -98,7 +100,8 @@ def main() -> None:
     repeats = entry["repeats"]
     est = np.array([r["estimate"] for r in repeats])
     sd_plugin = np.array([r["standard_error"] for r in repeats])
-    sd_cert = np.sqrt(np.array([r["certified_variance"] for r in repeats]))
+    sd_heur = np.sqrt(np.array([r["heuristic_variance"] for r in repeats]))
+    sd_worst = np.sqrt(np.array([r["worst_case_variance"] for r in repeats]))
     plain_est = np.array([r["plain_estimate_same_budget"] for r in repeats])
     plain_shots = np.array([r["plain_shots"] for r in repeats], dtype=float)
     sd_plain = np.sqrt(plain_est * (1 - plain_est) / plain_shots)
@@ -107,7 +110,8 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     gain, gain_lo, gain_hi = bootstrap_gain(est, plain_est, rng)
     reported_plugin_gain = float(np.mean(sd_plain**2) / np.mean(sd_plugin**2))
-    reported_cert_gain = float(np.mean(sd_plain**2) / np.mean(sd_cert**2))
+    reported_heur_gain = float(np.mean(sd_plain**2) / np.mean(sd_heur**2))
+    reported_worst_gain = float(np.mean(sd_plain**2) / np.mean(sd_worst**2))
 
     print(f"{len(repeats)} repeats, {decodes.mean():.0f} decodes each; "
           f"ground truth f = {truth:.4e} from {truth_failures} plain failures "
@@ -121,10 +125,12 @@ def main() -> None:
         f"the truth's own SE); plain mean {plain_est.mean():.4e} "
         f"({100 * (plain_est.mean() / truth - 1):+.1f}%)")
     print(f"realised SD / mean reported SD: plug-in "
-          f"{est.std(ddof=1) / sd_plugin.mean():.2f}, certified "
-          f"{est.std(ddof=1) / sd_cert.mean():.2f}, plain control "
+          f"{est.std(ddof=1) / sd_plugin.mean():.2f}, heuristic "
+          f"{est.std(ddof=1) / sd_heur.mean():.2f}, worst case "
+          f"{est.std(ddof=1) / sd_worst.mean():.2f}, plain control "
           f"{plain_est.std(ddof=1) / sd_plain.mean():.2f}")
-    for label, sds in (("plug-in", sd_plugin), ("certified", sd_cert)):
+    for label, sds in (("plug-in", sd_plugin), ("heuristic", sd_heur),
+                       ("worst case", sd_worst)):
         print(f"coverage {label:9s}: 68% nominal -> "
               f"{100 * coverage(est, sds, truth, Z_68):.0f}%, 95% nominal -> "
               f"{100 * coverage(est, sds, truth, Z_95):.0f}%")
@@ -135,15 +141,18 @@ def main() -> None:
     print(
         f"variance gain across repeats (realised): {gain:.2f} "
         f"[95% bootstrap {gain_lo:.2f}, {gain_hi:.2f}]; reported plug-in "
-        f"{reported_plugin_gain:.2f}, reported certified {reported_cert_gain:.2f}"
-    )
+        f"{reported_plugin_gain:.2f}, reported heuristic {reported_heur_gain:.2f}, "
+        f"reported worst case {reported_worst_gain:.2f}")
     per_repeat_plugin = sd_plain**2 / sd_plugin**2
-    per_repeat_cert = sd_plain**2 / sd_cert**2
+    per_repeat_heur = sd_plain**2 / sd_heur**2
+    per_repeat_worst = sd_plain**2 / sd_worst**2
     print(
         f"per-repeat plug-in gain: median {np.median(per_repeat_plugin):.2f}, "
         f"range [{per_repeat_plugin.min():.2f}, {per_repeat_plugin.max():.2f}]; "
-        f"certified: median {np.median(per_repeat_cert):.2f}, range "
-        f"[{per_repeat_cert.min():.2f}, {per_repeat_cert.max():.2f}]")
+        f"heuristic: median {np.median(per_repeat_heur):.2f}, range "
+        f"[{per_repeat_heur.min():.2f}, {per_repeat_heur.max():.2f}]; worst case: "
+        f"median {np.median(per_repeat_worst):.2f}, range "
+        f"[{per_repeat_worst.min():.2f}, {per_repeat_worst.max():.2f}]")
 
 
 if __name__ == "__main__":

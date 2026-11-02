@@ -9,7 +9,7 @@
 
 The package implements exact fault-count stratification (the unbiased core
 of IBM's "Fail fast", arXiv:2511.15177) and, inside each count stratum, the
-exact layer-composition stratification with certified allocation that is
+exact layer-composition stratification with calibrated allocation that is
 the method under test, on top of a Stim detector error model (DEM) and any
 decoder exposing a batch ``decode`` contract:
 
@@ -23,7 +23,8 @@ decoder exposing a batch ``decode`` contract:
 * :mod:`rare_event.layers` -- exact layer-composition strata of a count
   stratum, position grouping and exact group sampling.
 * :mod:`rare_event.allocation` -- shrinkage, Neyman rounds with fixed-weight
-  combination, certified variance and the certification allowance.
+  combination, the never-failing charges (heuristic and worst-case bound)
+  and the allowance rule.
 * :mod:`rare_event.onset` -- minimal failing sets found by descent from
   observed failures (an upper bound on the failure onset weight).
 * :mod:`rare_event.decoders` -- adapters for PyMatching, ``ldpc`` BP-OSD and

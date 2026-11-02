@@ -269,7 +269,6 @@
         {
           "estimate": 3.2046848947268906e-05,
           "standard_error": 1.678306240415294e-06,
-          "certified_empty_mass": 0.9727633432315528,
           "plain_shots": 1018133,
           "rest_mass_pooled": 0.0012445259186607382,
           "decoder_calls": 2036266,
@@ -568,14 +567,16 @@
             ]
           ],
           "plain_estimate_same_budget": 3.5358838187152365e-05,
-          "certified_variance": 1.2890493760617659e-11,
-          "certified_bound_group": 25,
-          "certified_bound_rate": 8.596727512393615e-05
+          "heuristic_variance": 1.2890493760617659e-11,
+          "worst_case_variance": 2.6787523793262977e-10,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.9727633432315528,
+          "heuristic_group": 25,
+          "heuristic_rate": 8.596727512393615e-05
         },
         {
           "estimate": 3.863870394254696e-05,
           "standard_error": 2.8904257797274047e-06,
-          "certified_empty_mass": 0.92638196344759,
           "plain_shots": 912050,
           "rest_mass_pooled": 0.0012445259186607382,
           "decoder_calls": 1824100,
@@ -874,9 +875,12 @@
             ]
           ],
           "plain_estimate_same_budget": 2.7410777917877308e-05,
-          "certified_variance": 2.1085774622624306e-11,
-          "certified_bound_group": 25,
-          "certified_bound_rate": 9.77230528681716e-05
+          "heuristic_variance": 2.1085774622624306e-11,
+          "worst_case_variance": 3.107417018133928e-10,
+          "worst_case_rate_constant": 6.29156913955832,
+          "never_failing_mass": 0.92638196344759,
+          "heuristic_group": 25,
+          "heuristic_rate": 9.77230528681716e-05
         }
       ],
       "stratified_mean": 3.5342776444907936e-05,
@@ -884,8 +888,10 @@
       "stratified_sd_realised": 4.661145367759529e-06,
       "plain_mean": 3.1384808052514837e-05,
       "plain_shots_mean": 965091.5,
-      "stratified_sd_certified": 4.091129156941717e-06,
-      "variance_gain_certified": 2.187914985265967,
+      "stratified_sd_heuristic": 4.091129156941717e-06,
+      "stratified_sd_worst_case": 1.6997380883083482e-05,
+      "variance_gain_heuristic": 2.187914985265967,
+      "variance_gain_worst_case": 0.12675141342691829,
       "plain_sd_analytic": 6.051435543707625e-06,
       "plain_sd_realised": 5.62012731368377e-06,
       "variance_gain_analytic": 7.017548851407988,

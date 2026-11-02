@@ -145,62 +145,83 @@ def test_proportional_pilot_respects_floor_and_mass():
     assert pilot[0] == 6000 and pilot[1] == 3900 and pilot[2] == 200
 
 
-def test_certified_variance_is_exposure_aware_bound():
+def test_never_failing_bounds_formulas():
     weights = np.array([0.5, 0.3, 0.2])
     labels = [np.array([1000.0, 1000.0, 2000.0])]
     failures = [np.array([0.0, 0.0, 20.0])]
     _, plugin = allocation.fixed_weight_estimate(weights, labels, failures)
-    out = allocation.certified_variance(weights, labels, failures)
+    out = allocation.never_failing_bounds(weights, labels, failures)
     assert out["plug_in"] == pytest.approx(plugin)
-    # Both empty strata have 1000 labels; the heavier one binds at rate
-    # 3/1000 and adds w^2 * (3/1000) / 1000.
+    # Heuristic: the heavier empty stratum at 3/1000 adds w^2 (3/1000)/1000.
     b = 3.0 / 1000.0
-    assert out["certified"] == pytest.approx(plugin + 0.5**2 * b / 1000.0,
+    assert out["heuristic"] == pytest.approx(plugin + 0.5**2 * b / 1000.0,
                                              rel=1e-9)
-    assert out["bound_group"] == 0 and out["bound_rate"] == pytest.approx(b)
+    assert out["heuristic_group"] == 0
+    assert out["heuristic_rate"] == pytest.approx(b)
+    # Worst case: every empty stratum at ln(G/0.05)/n_g, summed.
+    c = np.log(3 / 0.05)
+    assert out["worst_case_rate_constant"] == pytest.approx(c)
+    expected = plugin + (0.5**2 + 0.3**2) * (c / 1000.0) / 1000.0
+    assert out["worst_case"] == pytest.approx(expected, rel=1e-9)
+    assert out["worst_case"] >= out["heuristic"]
     assert out["empty_mass"] == pytest.approx(0.8)
-    # No empty stratum: certified equals the plug-in.
-    full = allocation.certified_variance(weights, labels,
-                                         [np.array([1.0, 1.0, 20.0])])
-    assert full["certified"] == pytest.approx(full["plug_in"])
-    assert full["bound_group"] is None
+    # No empty stratum: both equal the plug-in.
+    full = allocation.never_failing_bounds(weights, labels,
+                                           [np.array([1.0, 1.0, 20.0])])
+    assert full["heuristic"] == pytest.approx(full["plug_in"])
+    assert full["worst_case"] == pytest.approx(full["plug_in"])
+    assert full["heuristic_group"] is None
 
 
-def test_certified_variance_covers_undersampled_stratum():
-    # Two empty strata of one 'family': a heavy one with many labels and a
-    # light one with few.  A pooled family rate 3 / 2000 applied to both
-    # would charge far less than the light stratum can hide: a true rate
-    # of 3 / 100 there is observed failure-free with probability e^-3.
+def test_worst_case_bound_covers_undersampled_and_selected_strata():
+    # Under-sampled light stratum: a true rate of 3/100 is observed
+    # failure-free with probability e^-3; a pooled family rate 3/2000
+    # applied to both empty strata would undercover it.
     weights = np.array([0.45, 0.05, 0.5])
     labels = [np.array([1900.0, 100.0, 2000.0])]
     failures = [np.array([0.0, 0.0, 40.0])]
-    out = allocation.certified_variance(weights, labels, failures)
+    out = allocation.never_failing_bounds(weights, labels, failures)
     hidden_rate = 3.0 / 100.0
     true_extra = 0.05**2 * hidden_rate * (1 - hidden_rate) / 100.0
     pooled_rate = 3.0 / 2000.0
     pooled_extra = ((0.45**2 / 1900.0 + 0.05**2 / 100.0) * pooled_rate *
                     (1 - pooled_rate))
-    assert pooled_extra < true_extra  # the pooled formula undercovers
-    assert out["certified"] - out["plug_in"] >= true_extra
-    assert out["bound_group"] == 1
-    # The heavy stratum's own worst case is covered too.
-    heavy_extra = 0.45**2 * (3.0 / 1900.0) / 1900.0
-    assert out["certified"] - out["plug_in"] >= heavy_extra
-    # Adaptive, unequal rounds: the bound uses the round-wise inverse labels.
+    assert pooled_extra < true_extra
+    assert out["heuristic"] - out["plug_in"] >= true_extra
+    assert out["worst_case"] - out["plug_in"] >= true_extra
+    # Selection: with many equal strata at a common rate, the empty ones
+    # are chosen by the data.  The heuristic (one group at 3/n) falls
+    # below their true contribution; the simultaneous bound never does.
+    rng = np.random.default_rng(7)
+    G, n, f = 100, 1000, 0.001
+    w = np.full(G, 1.0 / G)
+    heuristic_fails = worst_fails = 0
+    trials = 200
+    for _ in range(trials):
+        F = rng.binomial(n, f, G).astype(float)
+        out = allocation.never_failing_bounds(w, [np.full(G, float(n))], [F])
+        empty = F == 0
+        true_extra = float(np.sum(w[empty]**2 * f * (1 - f) / n))
+        heuristic_fails += (out["heuristic"] - out["plug_in"]) < true_extra
+        worst_fails += (out["worst_case"] - out["plug_in"]) < true_extra
+    assert worst_fails == 0
+    assert heuristic_fails > 0.9 * trials
+    # Adaptive, unequal rounds: the charges use the round-wise inverse
+    # labels of each stratum.
     rounds = [np.array([400.0, 50.0, 1000.0]), np.array([1500.0, 50.0, 1000.0])]
     fails = [np.array([0.0, 0.0, 20.0]), np.array([0.0, 0.0, 20.0])]
-    out2 = allocation.certified_variance(weights, rounds, fails)
+    out2 = allocation.never_failing_bounds(weights, rounds, fails)
     inverse_light = (1 / 50.0 + 1 / 50.0) / 4
-    assert out2["certified"] - out2["plug_in"] == pytest.approx(
+    assert out2["heuristic"] - out2["plug_in"] == pytest.approx(
         0.05**2 * inverse_light * hidden_rate, rel=1e-9)
 
 
-def test_certification_floor_targets_group_bound_term():
+def test_allowance_floor_targets_group_heuristic_term():
     weights = np.array([0.5, 0.3, 0.15, 0.05])
     empty = np.array([True, True, True, False])
     f_hat, N, eps, rounds = 1e-4, 600000, 0.1, 3
-    floors = allocation.certification_floor(weights, empty, f_hat, N, eps,
-                                            rounds, 1, np.zeros(4))
+    floors = allocation.allowance_floor(weights, empty, f_hat, N, eps, rounds,
+                                        1, np.zeros(4))
     scale = np.sqrt(3.0 * N / (eps * f_hat)) / 3
     assert floors[3] == 0
     for g in range(3):
@@ -211,8 +232,8 @@ def test_certification_floor_targets_group_bound_term():
         assert 3.0 * weights[g]**2 / n_g**2 == pytest.approx(eps * f_hat / N,
                                                              rel=1e-9)
     # Labels already present reduce the shortfall; a met target gives zero.
-    met = allocation.certification_floor(weights, empty, f_hat, N, eps, rounds,
-                                         1, np.array([1e9, 1e9, 1e9, 0.0]))
+    met = allocation.allowance_floor(weights, empty, f_hat, N, eps, rounds, 1,
+                                     np.array([1e9, 1e9, 1e9, 0.0]))
     assert met.sum() == 0
     # The floor enters round_labels as a minimum.
     n = allocation.round_labels(10000,
@@ -224,18 +245,16 @@ def test_certification_floor_targets_group_bound_term():
     assert np.all(n >= floors)
 
 
-def test_optimal_certify_fraction_balances_bound_and_plug_in():
+def test_optimal_allowance_balances_charge_and_plug_in():
     weights = np.array([0.5, 0.3, 0.2])
     sigmas = np.sqrt(np.array([1e-3, 1e-4, 1e-4]))
-    # Nothing to certify.
-    assert allocation.optimal_certify_fraction(weights, np.zeros(3,
-                                                                 bool), sigmas,
-                                               5e-4, 100_000, 10_000) is None
+    # Nothing never-failing.
+    assert allocation.optimal_allowance(weights, np.zeros(3, bool), sigmas,
+                                        5e-4, 100_000, 10_000) is None
     empty = np.array([False, False, True])
     N = 100_000
     f = 5e-4
-    eps = allocation.optimal_certify_fraction(weights, empty, sigmas, f, N,
-                                              10_000)
+    eps = allocation.optimal_allowance(weights, empty, sigmas, f, N, 10_000)
     assert eps is not None and 1e-3 <= eps <= 10
     # The chosen point is within a grid step of the continuous optimum.
     A = float(np.dot(weights, sigmas))**2
@@ -250,21 +269,21 @@ def test_optimal_certify_fraction_balances_bound_and_plug_in():
     best = fine[np.argmin([projected(e) for e in fine])]
     assert abs(np.log(eps / best)) < np.log(10) / 40 + 1e-9
     # A heavier never-failing mass asks for a larger allowance (it is
-    # dearer to certify), a cheaper plug-in side for a smaller one.
-    heavier = allocation.optimal_certify_fraction(np.array([0.2, 0.3, 0.5]),
-                                                  empty, sigmas, f, N, 10_000)
+    # dearer to cover), a cheaper plug-in side for a smaller one.
+    heavier = allocation.optimal_allowance(np.array([0.2, 0.3, 0.5]), empty,
+                                           sigmas, f, N, 10_000)
     assert heavier >= eps
     # A budget too small to afford any allowance up to 10 still returns the
     # loosest affordable one instead of giving up (labels so far are large
     # so the one-failure rate floor does not override the tiny rate).
     tiny_rate = 5e-6
-    tiny = allocation.optimal_certify_fraction(weights, empty, sigmas,
-                                               tiny_rate, 200, 1_000_000)
+    tiny = allocation.optimal_allowance(weights, empty, sigmas, tiny_rate, 200,
+                                        1_000_000)
     cost_tiny = W * np.sqrt(
         allocation.ZERO_FAILURE_BOUND_EVENTS * 200 / tiny_rate)
     assert cost_tiny / np.sqrt(10.0) > 0.75 * 200  # 10 is unaffordable
     assert tiny is not None and tiny > 10
     assert 200 - cost_tiny / np.sqrt(tiny) >= 0.25 * 200 - 1e-6
     # No failure yet: the rate floor keeps the rule defined.
-    assert allocation.optimal_certify_fraction(weights, empty, sigmas, 0.0, N,
-                                               10_000) > 0
+    assert allocation.optimal_allowance(weights, empty, sigmas, 0.0, N,
+                                        10_000) > 0
