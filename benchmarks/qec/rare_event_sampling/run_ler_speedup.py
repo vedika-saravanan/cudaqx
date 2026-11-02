@@ -338,7 +338,7 @@ def plot(path: str, reports: list[dict]) -> None:
         ax2.plot(ler, [r["speedup_over_plain_worst_case"] for r in rows],
                  "v:",
                  color=line.get_color(),
-                 label=f"{label}: worst-case bound")
+                 label=f"{label}: worst-case allowance")
         ax3.plot(ler, [r["direct_cost"] for r in rows], ":", color="gray")
         ax3.plot(ler, [r["plain_stratified_cost"] for r in rows],
                  "s--",

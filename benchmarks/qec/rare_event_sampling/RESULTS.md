@@ -110,9 +110,14 @@ sets have weight 3, so IBM's enclosure model holds here.
 
 | p | Exact stratified | Reweighted (unbiased) | f3 ansatz | f5 ansatz | Direct (400k shots) |
 |---|---|---|---|---|---|
-| 0.003 | 3.20e-3 [2.54e-3, 4.18e-3] | - | 4.66e-3 | 3.21e-3 | 3.25e-3 [3.08e-3, 3.43e-3] |
-| 0.001 | - | 1.42e-4 +- 0.14e-4 | 2.80e-4 | 1.37e-4 | 1.13e-4 [0.82e-4, 1.51e-4] |
-| 0.0003 | - | 4.4e-6 +- 0.6e-6 | 9.5e-6 | 4.0e-6 | 1.0e-5 (4 failures) [2.7e-6, 2.6e-5] |
+| 0.003 | 3.20e-3 [2.54e-3, 4.18e-3] | n/a (reference rate) | 4.66e-3 | 3.21e-3 | 3.25e-3 [3.08e-3, 3.43e-3] |
+| 0.001 | n/a (not the reference rate) | 1.42e-4 +- 0.14e-4 | 2.80e-4 | 1.37e-4 | 1.13e-4 [0.82e-4, 1.51e-4] |
+| 0.0003 | n/a (not the reference rate) | 4.4e-6 +- 0.6e-6 | 9.5e-6 | 4.0e-6 | 1.0e-5 (4 failures) [2.7e-6, 2.6e-5] |
+
+(The samples were drawn at the reference rate 0.003, so the exact
+stratified estimate exists only there; at every other rate the same
+samples are reweighted exactly, which is the second column. "n/a" marks
+the column that does not apply at that rate, not a run that failed.)
 
 BB72, Relay-BP: 25 strata (k = 0..24), 20,000 samples each (500,000
 decodes, 48 s), then a second pass with IBM's allocation (k = 3..8,
@@ -210,18 +215,24 @@ the heuristic and worst-case versions of the speedup over IBM.
 
 | Decoder / code | p | LER, first order | LER, exact reweighting | direct MC | IBM count strata | LACE | vs direct | vs IBM: plug-in / heuristic / worst case |
 |---|---|---|---|---|---|---|---|---|
-| Relay-BP, BB72 | 2e-3 | 3.2e-3 | - | 3.1e4 | 1.7e4 | 1.6e4 | 2x | 1.10x / 1.04x / 0.78x |
-| Relay-BP, BB72 | 1e-3 | 6.7e-4 | - | 1.5e5 | 5.0e4 | 3.6e4 | 4x | 1.40x / 1.18x / 0.51x |
+| Relay-BP, BB72 | 2e-3 | 3.2e-3 | reference rate (identity) | 3.1e4 | 1.7e4 | 1.6e4 | 2x | 1.10x / 1.04x / 0.78x |
+| Relay-BP, BB72 | 1e-3 | 6.7e-4 | not stored | 1.5e5 | 5.0e4 | 3.6e4 | 4x | 1.40x / 1.18x / 0.51x |
 | Relay-BP, BB72 | 5e-4 | 7.0e-5 | 7.0e-5 | 1.4e6 | 1.8e5 | 9.1e4 | 16x | 1.92x / 1.44x / 0.38x |
 | Relay-BP, BB72 | 2e-4 | 3.6e-6 | 3.6e-6 | 2.8e7 | 5.1e5 | 2.0e5 | 140x | 2.6x / 1.79x / 0.33x |
 | Relay-BP, BB72 | 1e-4 | 4.3e-7 | 4.2e-7 | 2.3e8 | 7.3e5 | 2.5e5 | 930x | 2.9x / 1.97x / 0.33x |
-| BP-OSD, BB72 | 2e-3 | 9.0e-4 | - | 1.1e5 | 6.3e4 | 5.7e4 | 2x | 1.10x / 1.07x / 0.80x |
-| BP-OSD, BB72 | 1e-3 | 1.9e-4 | - | 5.4e5 | 1.8e5 | 1.1e5 | 5x | 1.62x / 1.38x / 0.43x |
+| BP-OSD, BB72 | 2e-3 | 9.0e-4 | reference rate (identity) | 1.1e5 | 6.3e4 | 5.7e4 | 2x | 1.10x / 1.07x / 0.80x |
+| BP-OSD, BB72 | 1e-3 | 1.9e-4 | not stored | 5.4e5 | 1.8e5 | 1.1e5 | 5x | 1.62x / 1.38x / 0.43x |
 | BP-OSD, BB72 | 5e-4 | 1.9e-5 | 1.9e-5 | 5.2e6 | 6.5e5 | 2.1e5 | 25x | 3.1x / 1.96x / 0.25x |
 | BP-OSD, BB72 | 2e-4 | 1.0e-6 | 1.0e-6 | 9.9e7 | 1.9e6 | 3.4e5 | 290x | 5.4x / 2.44x / 0.19x |
 | BP-OSD, BB72 | 1e-4 | 1.2e-7 | 1.2e-7 | 8.5e8 | 2.7e6 | 4.3e5 | 2000x | 6.4x / 2.53x / 0.18x |
 | PyMatching, surface d=5 | 1e-3 | 1.4e-4 | 1.4e-4 | 7.1e5 | 3.6e4 | 2.8e4 | 25x | 1.3x / 1.13x / 0.59x |
 | PyMatching, surface d=5 | 3e-4 | 4.4e-6 | 4.4e-6 | 2.3e7 | 5.2e4 | 3.7e4 | 610x | 1.4x / 1.17x / 0.51x |
+
+("LER, exact reweighting" is the exactly reweighted value the spectrum
+run stored for the target rates it was asked for; "not stored" means the
+spectrum run was not asked for that rate and the first-order value is the
+only one available there, and at the reference rate the reweighting is
+the identity. No entry marks a failed run.)
 
 (`results/ler_speedup_*.json`, `figures/ler_speedup.png`.) The projected
 advantage over IBM grows toward low LER because the onset stratum's share
