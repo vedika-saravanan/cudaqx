@@ -1,0 +1,54 @@
+{
+  "environment": {
+    "timestamp": "2026-11-01T15:47:32-0500",
+    "python": "3.12.3",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "stim": "1.16.0",
+    "numpy": "2.3.5",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 596.59",
+    "cudaq_qec": "CUDA-Q QEC 0.8.1 (https://github.com/NVIDIA/cudaqx e0015a269e25795fa743b1f4af76140b6ce616b0)"
+  },
+  "model": {
+    "circuit": 144,
+    "reference_rate": 0.002,
+    "detectors": 252,
+    "mechanisms": 2232,
+    "observables": 12,
+    "expected_fault_count": 5.959521631932088,
+    "decoder": "nv-qldpc",
+    "decoder_options": {
+      "batch_size": 1024
+    },
+    "count_nonconvergence_as_failure": true,
+    "seed": 20261020
+  },
+  "parameters": {
+    "circuit": "bb72",
+    "reference_rate": null,
+    "decoder": "nv-qldpc",
+    "decoder_option": [
+      "batch_size=1024"
+    ],
+    "count_nonconvergence_as_failure": true,
+    "seed": 20261020,
+    "output": "/home/vsaravanan/rare-event-results/direct_mc_bb72_relay_1e-3",
+    "rate": 0.001,
+    "shots": 150000,
+    "batch": 65536,
+    "checkpoint_batches": 16
+  },
+  "sampled_rate": 0.001,
+  "decoder_prior_rate": 0.002,
+  "shots": 150000,
+  "failures": 108,
+  "wrong_predictions": 108,
+  "nonconverged": 0,
+  "estimate": 0.00072,
+  "relative_standard_error": 0.0961903976111576,
+  "interval_95": [
+    0.0005906661997184801,
+    0.0008692198416919119
+  ],
+  "seconds": 4.682701077021193,
+  "complete": true
+}

@@ -1,0 +1,87 @@
+{
+  "environment": {
+    "timestamp": "2026-10-20T20:25:40-0400",
+    "python": "3.12.3",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "stim": "1.16.0",
+    "numpy": "2.3.5",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 596.59",
+    "cudaq_qec": "CUDA-Q QEC 0.8.1 (https://github.com/NVIDIA/cudaqx e0015a269e25795fa743b1f4af76140b6ce616b0)"
+  },
+  "model": {
+    "circuit": 64,
+    "reference_rate": 0.003,
+    "detectors": 120,
+    "mechanisms": 1677,
+    "observables": 1,
+    "expected_fault_count": 2.5717427996188755,
+    "decoder": "pymatching",
+    "decoder_options": {},
+    "count_nonconvergence_as_failure": true,
+    "seed": 20261020
+  },
+  "weights": {
+    "1": {
+      "configurations": 1677,
+      "failing_configurations": 0,
+      "seconds": 0.015582367981551215,
+      "failing_sets": [],
+      "f_by_rate": {
+        "0.003": {
+          "f": 0.0,
+          "stratum_mass": 0.19613486609497452,
+          "ler_contribution": 0.0
+        },
+        "0.001": {
+          "f": 0.0,
+          "stratum_mass": 0.3643323884524003,
+          "ler_contribution": 0.0
+        },
+        "0.0003": {
+          "f": 0.0,
+          "stratum_mass": 0.19951534389458214,
+          "ler_contribution": 0.0
+        },
+        "0.0001": {
+          "f": 0.0,
+          "stratum_mass": 0.07898611082281728,
+          "ler_contribution": 0.0
+        }
+      }
+    },
+    "2": {
+      "configurations": 1405326,
+      "failing_configurations": 0,
+      "seconds": 22.77960325498134,
+      "failing_sets": [],
+      "f_by_rate": {
+        "0.003": {
+          "f": 0.0,
+          "stratum_mass": 0.2531730728233814,
+          "ler_contribution": 0.0
+        },
+        "0.001": {
+          "f": 0.0,
+          "stratum_mass": 0.1565380319766883,
+          "ler_contribution": 0.0
+        },
+        "0.0003": {
+          "f": 0.0,
+          "stratum_mass": 0.02570403556908532,
+          "ler_contribution": 0.0
+        },
+        "0.0001": {
+          "f": 0.0,
+          "stratum_mass": 0.003391501087065382,
+          "ler_contribution": 0.0
+        }
+      }
+    }
+  },
+  "cost": {
+    "decoder_calls": 1407003,
+    "wrong_predictions": 0,
+    "nonconverged": 0,
+    "wall_seconds": 23.22632032399997
+  }
+}

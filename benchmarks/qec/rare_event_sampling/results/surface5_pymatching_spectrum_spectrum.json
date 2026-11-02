@@ -1,0 +1,270 @@
+{
+  "environment": {
+    "timestamp": "2026-10-20T17:49:09-0400",
+    "python": "3.12.3",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "stim": "1.16.0",
+    "numpy": "2.3.5",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 596.59",
+    "cudaq_qec": "CUDA-Q QEC 0.8.1 (https://github.com/NVIDIA/cudaqx e0015a269e25795fa743b1f4af76140b6ce616b0)"
+  },
+  "model": {
+    "circuit": 64,
+    "reference_rate": 0.003,
+    "detectors": 120,
+    "mechanisms": 1677,
+    "observables": 1,
+    "expected_fault_count": 2.5717427996188755,
+    "decoder": "pymatching",
+    "decoder_options": {},
+    "count_nonconvergence_as_failure": true,
+    "seed": 20261020
+  },
+  "spectrum": {
+    "counts": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "trials": [
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000,
+      20000
+    ],
+    "failures": [
+      0,
+      0,
+      0,
+      34,
+      85,
+      228,
+      445,
+      757,
+      1145,
+      1597,
+      2199,
+      2761,
+      3290,
+      4129,
+      4687,
+      5177,
+      5781,
+      6343,
+      6833,
+      7249,
+      7733
+    ],
+    "failure_fraction": [
+      0.0,
+      0.0,
+      0.0,
+      0.0017,
+      0.00425,
+      0.0114,
+      0.02225,
+      0.03785,
+      0.05725,
+      0.07985,
+      0.10995,
+      0.13805,
+      0.1645,
+      0.20645,
+      0.23435,
+      0.25885,
+      0.28905,
+      0.31715,
+      0.34165,
+      0.36245,
+      0.38665
+    ],
+    "source_pmf": [
+      0.07578780129248266,
+      0.1961348660949751,
+      0.25317307282338325,
+      0.21733354378594322,
+      0.13958400763566192,
+      0.07154405233133686,
+      0.03048384474197908,
+      0.011106042610125159,
+      0.00353181350026776,
+      0.0009959213670327335,
+      0.00025213714835610696,
+      5.7889331748508494e-05,
+      1.215387832217396e-05,
+      2.349702875664934e-06,
+      4.207951910203077e-07,
+      7.016336688251485e-08,
+      1.0941252188372166e-08,
+      1.601920642569366e-09,
+      2.2097254111553177e-10,
+      2.8807268506197203e-11,
+      3.5590791070993952e-12
+    ],
+    "seconds": 13.602008003013907
+  },
+  "projections": {
+    "0.003": {
+      "pmf_tail_mass": 4.4375614294267507e-13,
+      "expected_fault_count": 2.5717427996188755,
+      "exact_bounds": {
+        "point": 0.0031969701997385702,
+        "lower": 0.0025420945865562384,
+        "upper": 0.004184649275018132,
+        "unmeasured_mass": 4.4375614294267507e-13,
+        "relative_half_width": 0.3230711196090963
+      },
+      "ansatz_fit": {
+        "model": "f3",
+        "amplitude": 0.0037449982674175263,
+        "gamma1": 2.838519711631025,
+        "gamma2": 2.838519711631025,
+        "crossover": 3.0,
+        "converged": true,
+        "projected_ler": 0.00466014136670303,
+        "bootstrap": {
+          "replicates": 200,
+          "median": 0.004659391157169555,
+          "lower": 0.004516224640649051,
+          "upper": 0.0048111468865483595
+        },
+        "note": "model-dependent projection; not a confidence interval for the true LER"
+      },
+      "direct_control": {
+        "shots": 400000,
+        "failures": 1300,
+        "estimate": 0.00325,
+        "interval_95": [
+          0.0030759753256853163,
+          0.0034312807288865823
+        ],
+        "decoder_calls": 400000,
+        "seconds": 8.025236045010388
+      }
+    },
+    "0.001": {
+      "pmf_tail_mass": 1.532107773982716e-14,
+      "expected_fault_count": 0.8596122081810094,
+      "reweighted": {
+        "point": 0.00014175092895066883,
+        "standard_error": 1.3815831675886199e-05,
+        "unmeasured_mass": 1.532107773982716e-14
+      },
+      "ansatz_fit": {
+        "model": "f3",
+        "amplitude": 0.0037449982674175263,
+        "gamma1": 2.838519711631025,
+        "gamma2": 2.838519711631025,
+        "crossover": 3.0,
+        "converged": true,
+        "projected_ler": 0.00028021194426430487,
+        "bootstrap": {
+          "replicates": 200,
+          "median": 0.00028079612386314276,
+          "lower": 0.0002675511983835511,
+          "upper": 0.00029244753536606283
+        },
+        "note": "model-dependent projection; not a confidence interval for the true LER"
+      },
+      "direct_control": {
+        "shots": 400000,
+        "failures": 45,
+        "estimate": 0.0001125,
+        "interval_95": [
+          8.205941843963259e-05,
+          0.00015053098851064973
+        ],
+        "decoder_calls": 400000,
+        "seconds": 7.640226070012432
+      }
+    },
+    "0.0003": {
+      "pmf_tail_mass": 7.549516567451064e-15,
+      "expected_fault_count": 0.25813298317645567,
+      "reweighted": {
+        "point": 4.436635374094429e-06,
+        "standard_error": 6.453040670241111e-07,
+        "unmeasured_mass": 7.549516567451064e-15
+      },
+      "ansatz_fit": {
+        "model": "f3",
+        "amplitude": 0.0037449982674175263,
+        "gamma1": 2.838519711631025,
+        "gamma2": 2.838519711631025,
+        "crossover": 3.0,
+        "converged": true,
+        "projected_ler": 9.524905228592401e-06,
+        "bootstrap": {
+          "replicates": 200,
+          "median": 9.519949001475649e-06,
+          "lower": 9.103977411364898e-06,
+          "upper": 9.964323107694645e-06
+        },
+        "note": "model-dependent projection; not a confidence interval for the true LER"
+      },
+      "direct_control": {
+        "shots": 400000,
+        "failures": 4,
+        "estimate": 1e-05,
+        "interval_95": [
+          2.7246699396850886e-06,
+          2.5603771927277533e-05
+        ],
+        "decoder_calls": 400000,
+        "seconds": 7.411975653027184
+      }
+    }
+  },
+  "onset": {
+    "hypothesis": 3,
+    "observed_minimum": 3
+  },
+  "minimal_failing_sets": {
+    "onset_upper_bound": 3,
+    "distinct_minimal_sets": 50,
+    "weight_histogram": {
+      "3": 50
+    }
+  },
+  "cost": {
+    "decoder_calls": 1620264,
+    "wrong_predictions": 61888,
+    "nonconverged": 0,
+    "wall_seconds": 41.567436807003105
+  }
+}
